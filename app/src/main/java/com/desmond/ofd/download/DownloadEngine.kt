@@ -6,6 +6,8 @@ import android.util.Log
 import com.desmond.ofd.firmware.FirmwareDownloadGate
 import com.desmond.ofd.firmware.FirmwareDownloadGateResult
 import com.desmond.ofd.firmware.validateFirmwareSize
+import com.desmond.ofd.http.FIRMWARE_ID_HEADER
+import com.desmond.ofd.http.FIRMWARE_ID_VALUE
 import com.desmond.ofd.http.FIRMWARE_USER_AGENT
 import com.desmond.ofd.http.parseContentRange
 import kotlinx.coroutines.CoroutineDispatcher
@@ -57,10 +59,31 @@ class DownloadEngine(
 
     private val callsByDownload = ConcurrentHashMap<String, MutableSet<Call>>()
 
+    private class DownloadAuth(
+        val extraHeaders: Map<String, String>,
+        val authProvider: (suspend () -> Map<String, String>)?,
+    )
+    private val authByDownload = ConcurrentHashMap<String, DownloadAuth>()
+
+    /**
+     * Static extra headers plus a fresh set from the (optional) auth provider — evaluated per
+     * request so a short-lived download token refreshes across chunks/retries. Empty for direct
+     * downloads that registered no auth.
+     */
+    private suspend fun authHeaders(downloadId: String): Map<String, String> {
+        val auth = authByDownload[downloadId] ?: return emptyMap()
+        return auth.extraHeaders + (auth.authProvider?.invoke() ?: emptyMap())
+    }
+
     fun cancel(downloadId: String) {
         callsByDownload[downloadId]?.forEach { call ->
             runCatching { call.cancel() }
         }
+    }
+
+    /** Drop a download's registered auth once the whole download (all retries) is done. */
+    fun clearAuth(downloadId: String) {
+        authByDownload.remove(downloadId)
     }
 
     suspend fun download(
@@ -69,8 +92,11 @@ class DownloadEngine(
         contentResolver: ContentResolver,
         targetUri: Uri,
         expectedSize: Long,
+        extraHeaders: Map<String, String> = emptyMap(),
+        authProvider: (suspend () -> Map<String, String>)? = null,
         onProgress: suspend (bytesDownloaded: Long, totalBytes: Long, speedBps: Long) -> Unit,
     ): DownloadOutcome {
+        authByDownload[downloadId] = DownloadAuth(extraHeaders, authProvider)
         val resolvedUrl = when (val resolved = resolveDownloadUrl(downloadId, url)) {
             is FirmwareDownloadGateResult.Success -> resolved.resolvedUrl
             is FirmwareDownloadGateResult.Failure -> return DownloadOutcome.IoError(
@@ -166,13 +192,15 @@ class DownloadEngine(
         }
 
     private suspend fun probeSize(downloadId: String, url: String): SizeProbe = withContext(workerDispatcher) {
-        val req = Request.Builder()
+        val builder = Request.Builder()
             .url(url)
             .header("Range", "bytes=0-0")
+            .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
             .tag(downloadId)
-            .build()
+        authHeaders(downloadId).forEach { (k, v) -> builder.header(k, v) }
+        val req = builder.build()
         val call = httpClient.newCall(req)
         val unregister = registerCall(downloadId, call)
         try {
@@ -328,13 +356,15 @@ class DownloadEngine(
         totalSize: Long,
         onChunkBytes: (Long) -> Unit,
     ) {
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url(url)
             .header("Range", "bytes=$startOffset-${chunk.end}")
+            .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
             .tag(downloadId)
-            .build()
+        authHeaders(downloadId).forEach { (k, v) -> builder.header(k, v) }
+        val request = builder.build()
         val call = httpClient.newCall(request)
         val unregister = registerCall(downloadId, call)
         try {
@@ -398,12 +428,14 @@ class DownloadEngine(
         onProgress: suspend (Long, Long, Long) -> Unit,
         knownSize: Long = -1L,
     ): DownloadOutcome = withContext(workerDispatcher) {
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url(url)
+            .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
             .tag(downloadId)
-            .build()
+        authHeaders(downloadId).forEach { (k, v) -> builder.header(k, v) }
+        val request = builder.build()
         val call = httpClient.newCall(request)
         val unregister = registerCall(downloadId, call)
         try {

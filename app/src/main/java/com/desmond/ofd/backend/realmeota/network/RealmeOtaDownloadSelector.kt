@@ -5,6 +5,13 @@ import com.desmond.ofd.firmware.validateFirmwareSize
 
 internal object RealmeOtaDownloadSelector {
     fun select(response: OtaResponseDto): RealmeOtaDownloadSelection {
+        // GKA mode: the CDN requires a hardware-attested signature this client can't produce.
+        // Fail fast with a clear reason instead of hitting the anti-leech gate and reporting a
+        // generic error.
+        if (response.gkaReq == 1) {
+            return RealmeOtaDownloadSelection.Failure(RealmeOtaDownloadFailure.GKA_ATTESTATION_REQUIRED)
+        }
+
         val packet = response.components.firstOrNull()?.componentPackets
             ?: return RealmeOtaDownloadSelection.Failure(RealmeOtaDownloadFailure.NO_DOWNLOAD_PACKET)
 
@@ -59,4 +66,5 @@ internal enum class RealmeOtaDownloadFailure {
     NO_DOWNLOAD_PACKET,
     NO_DOWNLOAD_URL,
     INVALID_FIRMWARE_SIZE,
+    GKA_ATTESTATION_REQUIRED,
 }

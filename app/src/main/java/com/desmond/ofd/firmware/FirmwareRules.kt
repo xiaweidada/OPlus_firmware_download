@@ -3,7 +3,11 @@ package com.desmond.ofd.firmware
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import java.util.Locale
 
-internal const val MIN_FULL_FIRMWARE_BYTES = 1L shl 30
+// Floor to distinguish a real firmware package from an anti-leech/error body (tens of bytes)
+// or an HTML error page (a few KB). Kept well below any real full package (which run multiple
+// GB) but high enough to reject junk. Previously 1 GiB, which risked rejecting legitimate
+// smaller packages; the anti-leech `userId` fix now makes short rejection bodies rare anyway.
+internal const val MIN_FULL_FIRMWARE_BYTES = 100L shl 20 // 100 MiB
 
 internal fun validateFirmwareSize(resolvedSize: Long, expectedSize: Long): String? {
     if (resolvedSize in 0 until MIN_FULL_FIRMWARE_BYTES) {

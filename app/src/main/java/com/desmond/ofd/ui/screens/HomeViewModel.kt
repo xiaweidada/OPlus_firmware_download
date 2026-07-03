@@ -12,6 +12,8 @@ import com.desmond.ofd.R
 import com.desmond.ofd.backend.VersionResolver
 import com.desmond.ofd.backend.danielspringer.DanielspringerCatalog
 import com.desmond.ofd.backend.danielspringer.DanielspringerClient
+import com.desmond.ofd.backend.mirror.MirrorClient
+import com.desmond.ofd.backend.mirror.MirrorProxyRef
 import com.desmond.ofd.backend.realmeota.data.OtaRequestParams
 import com.desmond.ofd.backend.realmeota.network.OtaResult
 import com.desmond.ofd.backend.realmeota.network.RealmeOtaDownloadFailure
@@ -19,9 +21,6 @@ import com.desmond.ofd.backend.realmeota.network.RealmeOtaDownloadSelection
 import com.desmond.ofd.backend.realmeota.network.RealmeOtaDownloadSelector
 import com.desmond.ofd.backend.realmeota.network.RealmeOtaVersionCandidates
 import com.desmond.ofd.backend.realmeota.network.RealmeOtaClient
-import com.desmond.ofd.catalog.CatalogRepository
-import com.desmond.ofd.catalog.DeviceCatalog
-import com.desmond.ofd.catalog.DeviceEntry
 import com.desmond.ofd.device.DeviceProps
 import com.desmond.ofd.device.DeviceSnapshot
 import com.desmond.ofd.download.DownloadCoordinator
@@ -64,10 +63,13 @@ sealed interface BackendOutcome {
          * for build-date extraction and display only.
          */
         val realOtaVersion: String? = null,
+        /**
+         * When set, the download URL is not [downloadUrl] but a token-gated proxy resolved
+         * lazily at download time from this reference (see [startDownload]).
+         */
+        val mirrorRef: MirrorProxyRef? = null,
     ) : BackendOutcome
     data class Failure(val message: BackendMessage) : BackendOutcome
-    /** Backend wasn't called because a prerequisite (OTA version, IMEI, …) was missing. */
-    data class Skipped(val reason: BackendMessage) : BackendOutcome
     data object NotAttempted : BackendOutcome
 }
 
@@ -76,8 +78,7 @@ sealed interface HomeUiState {
     data object Loading : HomeUiState
     data class Result(
         val marketingName: String,
-        val realmeOtaStable: BackendOutcome,
-        val realmeOtaBeta: BackendOutcome,
+        val realmeOta: BackendOutcome,
         val danielspringer: BackendOutcome,
         /** Identifier of the source that won the version comparison; null if no Success. */
         val winnerLabel: String?,
@@ -88,14 +89,14 @@ sealed interface HomeUiState {
 
 object BackendLabels {
     const val DANIELSPRINGER = "danielspringer.at"
-    const val REALME_OTA_STABLE = "realme-ota (stable)"
-    const val REALME_OTA_BETA = "realme-ota (beta)"
+    const val REALME_OTA = "realme-ota"
 }
 
 class HomeViewModel(
     application: Application,
     private val realmeOtaClient: RealmeOtaClient = RealmeOtaClient(),
     private val danielspringerClient: DanielspringerClient = DanielspringerClient(),
+    private val mirrorClient: MirrorClient = MirrorClient(application),
     private val getSnapshot: () -> DeviceSnapshot = { DeviceProps.snapshot(useShellFallback = true) },
 ) : AndroidViewModel(application) {
 
@@ -103,22 +104,13 @@ class HomeViewModel(
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
     private val firmwareUrlProbe = FirmwareUrlProbe()
 
-    private val _catalog = MutableStateFlow<List<DeviceEntry>>(emptyList())
-    val catalog: StateFlow<List<DeviceEntry>> = _catalog.asStateFlow()
-
     /**
-     * Tracks the in-flight check coroutine so [reset] (e.g. on Auto/Manual tab switch) can
-     * cancel it before it overwrites the freshly-cleared state with a stale Result.
+     * Tracks the in-flight check coroutine so [reset] can cancel it before it overwrites the
+     * freshly-cleared state with a stale Result.
      */
     private var checkJob: Job? = null
 
-    init {
-        viewModelScope.launch {
-            _catalog.value = CatalogRepository(getApplication()).allDevices()
-        }
-    }
-
-    fun checkAuto(imei: String? = null) {
+    fun checkAuto() {
         checkJob?.cancel()
         checkJob = viewModelScope.launch {
             _state.value = HomeUiState.Loading
@@ -130,17 +122,8 @@ class HomeViewModel(
                 ruiVersion = snapshot.ruiVersion,
                 nvIdentifier = snapshot.nvId,
                 region = snapshot.region,
-                imei0 = imei,
             )
-            runCheck(params)
-        }
-    }
-
-    fun checkManual(params: OtaRequestParams) {
-        checkJob?.cancel()
-        checkJob = viewModelScope.launch {
-            _state.value = HomeUiState.Loading
-            runCheck(params)
+            runCheck(params, snapshot.marketName)
         }
     }
 
@@ -154,49 +137,51 @@ class HomeViewModel(
      * Returns the new download id when scheduled, or `null` when an active download already
      * matches this firmware (same MD5, or same `displayName + size` when MD5 is unavailable).
      */
-    fun startDownload(
+    suspend fun startDownload(
         targetUri: Uri,
         outcome: BackendOutcome.Success,
         displayName: String,
-    ): String? = DownloadCoordinator.start(
-        context = getApplication(),
-        params = DownloadParams(
-            url = outcome.downloadUrl,
-            targetUri = targetUri,
-            displayName = displayName,
-            expectedSize = outcome.sizeBytes,
-            expectedMd5 = outcome.md5,
-        ),
-    )
-
-    private suspend fun runCheck(params: OtaRequestParams) {
-        val (stable, beta, springer) = coroutineScope {
-            val stableDeferred = async {
-                runRealmeOta(params.copy(beta = false))
-            }
-            val betaDeferred = async {
-                when {
-                    params.imei0.isNullOrBlank() ->
-                        BackendOutcome.Skipped(backendMessage(R.string.backend_skip_beta_imei_required))
-                    else -> runRealmeOta(params.copy(beta = true))
-                }
-            }
-            val springerDeferred = async { runDanielspringer(params) }
-            Triple(stableDeferred.await(), betaDeferred.await(), springerDeferred.await())
+    ): String? {
+        val ref = outcome.mirrorRef
+        val params = if (ref != null) {
+            // Token-gated proxy: resolve the short-lived URL now and supply a refreshing token.
+            val url = mirrorClient.resolveDownloadUrl(ref.deviceName, ref.otaVersion) ?: return null
+            DownloadParams(
+                url = url,
+                targetUri = targetUri,
+                displayName = displayName,
+                expectedSize = outcome.sizeBytes,
+                expectedMd5 = outcome.md5,
+                authProvider = { mirrorClient.downloadAuthHeaders(ref.deviceName, ref.otaVersion) },
+            )
+        } else {
+            DownloadParams(
+                url = outcome.downloadUrl,
+                targetUri = targetUri,
+                displayName = displayName,
+                expectedSize = outcome.sizeBytes,
+                expectedMd5 = outcome.md5,
+            )
         }
-        val marketingName = DeviceCatalog.marketingName(getApplication(), params.model)
-            ?: params.model
+        return DownloadCoordinator.start(getApplication(), params)
+    }
+
+    private suspend fun runCheck(params: OtaRequestParams, marketName: String?) {
+        val (realme, springer) = coroutineScope {
+            val realmeDeferred = async { runRealmeOta(params) }
+            val springerDeferred = async { runDanielspringer(params) }
+            realmeDeferred.await() to springerDeferred.await()
+        }
+        val marketingName = marketName ?: params.model
         val winner = pickWinner(
             listOf(
                 BackendLabels.DANIELSPRINGER to springer,
-                BackendLabels.REALME_OTA_STABLE to stable,
-                BackendLabels.REALME_OTA_BETA to beta,
+                BackendLabels.REALME_OTA to realme,
             )
         )
         _state.value = HomeUiState.Result(
             marketingName = marketingName,
-            realmeOtaStable = stable,
-            realmeOtaBeta = beta,
+            realmeOta = realme,
             danielspringer = springer,
             winnerLabel = winner?.first,
             winnerOutcome = winner?.second,
@@ -316,6 +301,8 @@ class HomeViewModel(
                         R.string.backend_error_invalid_firmware_size,
                         formatFirmwareBytes(selected.observedSize ?: -1L),
                     )
+                RealmeOtaDownloadFailure.GKA_ATTESTATION_REQUIRED ->
+                    backendMessage(R.string.backend_error_gka_required)
             },
         )
 
@@ -354,7 +341,29 @@ class HomeViewModel(
         return 20
     }
 
-    private suspend fun runDanielspringer(params: OtaRequestParams): BackendOutcome {
+    /**
+     * The "danielspringer" row is really two sources: the public site and a secondary mirror.
+     * Query both in parallel and present whichever has the newer version under the one label.
+     * On a tie we keep the public site (direct download, no load on the mirror).
+     */
+    private suspend fun runDanielspringer(params: OtaRequestParams): BackendOutcome = coroutineScope {
+        val springerDeferred = async { danielspringerOutcome(params) }
+        val mirrorDeferred = async { mirrorOutcome(params) }
+        val springer = springerDeferred.await()
+        val mirror = mirrorDeferred.await()
+        val s = springer as? BackendOutcome.Success
+        val m = mirror as? BackendOutcome.Success
+        when {
+            s != null && m != null ->
+                if (VersionResolver.compare(m.versionName, s.versionName) > 0) m else s
+            s != null -> s
+            m != null -> m
+            // Neither succeeded: keep the site's failure (its message is the useful one).
+            else -> springer
+        }
+    }
+
+    private suspend fun danielspringerOutcome(params: OtaRequestParams): BackendOutcome {
         return runCatching {
             val catalog = catalogCache ?: danielspringerClient.fetchCatalog().also { catalogCache = it }
             val res = danielspringerClient.fetchLatestUrlForModel(
@@ -377,6 +386,20 @@ class HomeViewModel(
                 BackendMessage.Raw(it.message ?: it::class.simpleName ?: getApplication<Application>().getString(R.string.backend_error_unknown)),
             )
         }
+    }
+
+    private suspend fun mirrorOutcome(params: OtaRequestParams): BackendOutcome {
+        val v = runCatching { mirrorClient.resolveLatest(params.model) }.getOrNull()
+            ?: return BackendOutcome.NotAttempted
+        return BackendOutcome.Success(
+            versionName = v.versionName,
+            realOtaVersion = v.otaVersion,
+            downloadUrl = "", // resolved lazily at download time (token-gated)
+            sizeBytes = v.sizeBytes,
+            md5 = v.md5,
+            securityPatch = v.securityPatch,
+            mirrorRef = MirrorProxyRef(v.deviceName, v.otaVersion),
+        )
     }
 
     private fun pickWinner(

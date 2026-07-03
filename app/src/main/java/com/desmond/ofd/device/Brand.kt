@@ -1,6 +1,6 @@
 package com.desmond.ofd.device
 
-/** Brand grouping used by the picker / catalog. */
+/** Brand grouping for the detected device. */
 enum class Brand(val display: String) {
     OnePlus("OnePlus"),
     OPPO("OPPO"),
@@ -13,14 +13,6 @@ enum class Brand(val display: String) {
             "oneplus" -> OnePlus
             "oppo" -> OPPO
             "realme" -> Realme
-            else -> Other
-        }
-
-        /** Best-effort detection from a marketing-name string. */
-        fun detect(marketingName: String): Brand = when {
-            marketingName.startsWith("OnePlus", ignoreCase = true) -> OnePlus
-            marketingName.startsWith("OPPO", ignoreCase = true) -> OPPO
-            marketingName.startsWith("realme", ignoreCase = true) -> Realme
             else -> Other
         }
     }

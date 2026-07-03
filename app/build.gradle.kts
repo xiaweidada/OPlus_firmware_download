@@ -1,7 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+}
+
+// Secondary "latest" firmware source: base URL + key + UA live in local.properties
+// (git-ignored) for local builds, or in environment variables (from CI secrets) for
+// GitHub Actions. Blank when unconfigured, which disables the source entirely at runtime,
+// so a clone without these values still builds and behaves as before.
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.reader().use(::load)
+}
+fun secret(propKey: String, envKey: String): String {
+    val raw = localProperties.getProperty(propKey) ?: System.getenv(envKey) ?: ""
+    return raw.replace("\\", "\\\\").replace("\"", "\\\"")
 }
 
 android {
@@ -14,10 +29,14 @@ android {
         applicationId = "com.desmond.ofd"
         minSdk = 33
         targetSdk = 36
-        versionCode = 9
-        versionName = "1.4.1"
+        versionCode = 10
+        versionName = "1.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "MIRROR_BASE_URL", "\"${secret("mirror.baseUrl", "MIRROR_BASE_URL")}\"")
+        buildConfigField("String", "MIRROR_KEY", "\"${secret("mirror.key", "MIRROR_KEY")}\"")
+        buildConfigField("String", "MIRROR_UA", "\"${secret("mirror.ua", "MIRROR_UA")}\"")
     }
 
     buildTypes {

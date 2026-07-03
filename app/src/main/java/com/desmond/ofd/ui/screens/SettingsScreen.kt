@@ -48,7 +48,6 @@ import kotlinx.coroutines.launch
 
 private const val URL_REALME_OTA = "https://github.com/R0rt1z2/realme-ota"
 private const val URL_DANIELSPRINGER = "https://roms.danielspringer.at/index.php?view=ota"
-private const val URL_MOBILE_MODELS = "https://github.com/KHwang9883/MobileModels"
 private const val URL_SOURCE = "https://github.com/suddenBook/OPlus_firmware_download"
 
 private data class LanguageOption(
@@ -143,12 +142,6 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         title = "danielspringer.at",
                         subtitle = stringResource(R.string.backend_danielspringer_summary),
                         onClick = { open(URL_DANIELSPRINGER) },
-                    )
-                    HorizontalDivider()
-                    LinkRow(
-                        title = "MobileModels",
-                        subtitle = stringResource(R.string.backend_mobile_models_summary),
-                        onClick = { open(URL_MOBILE_MODELS) },
                     )
                 }
             }

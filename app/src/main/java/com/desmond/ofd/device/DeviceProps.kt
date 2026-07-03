@@ -24,6 +24,11 @@ object DeviceProps {
         realmeUi = systemProperty("ro.build.version.realmeui", useShellFallback),
         oplusRom = systemProperty("ro.build.version.oplusrom", useShellFallback),
         displayId = systemProperty("ro.build.display.id", useShellFallback),
+        // English marketing name (e.g. "OnePlus 15"); fall back to the localized name.
+        marketName = systemProperty("ro.vendor.oplus.market.enname", useShellFallback)
+            ?: systemProperty("ro.vendor.oplus.market.name", useShellFallback),
+        regionMark = systemProperty("ro.vendor.oplus.regionmark", useShellFallback)
+            ?: systemProperty("persist.sys.oplus.region", useShellFallback),
     )
 
     /**

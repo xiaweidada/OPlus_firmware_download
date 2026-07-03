@@ -51,7 +51,12 @@ class RealmeOtaClient(
         }
 
         return response.use { r ->
-            val body = r.body?.string().orEmpty()
+            val body = try {
+                r.body?.string().orEmpty()
+            } catch (e: IOException) {
+                // A network drop mid-body must not escape and crash the enclosing check.
+                return@use OtaResult.NetworkError(e)
+            }
             if (!r.isSuccessful) {
                 return@use OtaResult.HttpError(r.code, "HTTP ${r.code}: ${r.message}")
             }

@@ -1,5 +1,7 @@
 package com.desmond.ofd.firmware
 
+import com.desmond.ofd.http.FIRMWARE_ID_HEADER
+import com.desmond.ofd.http.FIRMWARE_ID_VALUE
 import com.desmond.ofd.http.FIRMWARE_USER_AGENT
 import com.desmond.ofd.http.parseContentRange
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -34,6 +36,7 @@ internal class FirmwareUrlProbe(
             val builder = Request.Builder()
                 .url(resolvedUrl)
                 .header("Range", "bytes=0-0")
+                .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
                 .header("User-Agent", FIRMWARE_USER_AGENT)
                 .header("Accept", "*/*")
             if (tag != null) builder.tag(tag)

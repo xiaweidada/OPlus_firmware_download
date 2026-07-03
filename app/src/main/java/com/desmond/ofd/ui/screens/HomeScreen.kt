@@ -30,19 +30,13 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,7 +50,6 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.desmond.ofd.R
-import com.desmond.ofd.catalog.DeviceCatalog
 import com.desmond.ofd.device.DeviceProps
 import com.desmond.ofd.device.DeviceSnapshot
 import kotlinx.coroutines.launch
@@ -71,11 +64,6 @@ private data class PendingDownload(
 fun HomeScreen(modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
-    var mode by remember { mutableIntStateOf(0) }
-    val modes = listOf(
-        stringResource(R.string.mode_auto),
-        stringResource(R.string.mode_manual),
-    )
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val downloadStartedMessage = stringResource(R.string.download_started)
@@ -85,15 +73,8 @@ fun HomeScreen(modifier: Modifier = Modifier) {
 
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
     val state by vm.state.collectAsStateWithLifecycle()
-    val catalog by vm.catalog.collectAsStateWithLifecycle()
 
-    var autoImei by remember { mutableStateOf("") }
     val snapshot = remember { DeviceProps.snapshot() }
-    val autoSuggest = remember(catalog, snapshot) {
-        catalog.firstOrNull { it.model == snapshot.productName }
-    }
-
-    LaunchedEffect(mode) { vm.reset() }
 
     var pending by remember { mutableStateOf<PendingDownload?>(null) }
     val savePicker = rememberLauncherForActivityResult(
@@ -110,8 +91,8 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             scope.launch { snackbarHostState.showSnackbar(savePermissionFailedMessage) }
             return@rememberLauncherForActivityResult
         }
-        val newId = vm.startDownload(uri, pendingDownload.outcome, pendingDownload.displayName)
         scope.launch {
+            val newId = vm.startDownload(uri, pendingDownload.outcome, pendingDownload.displayName)
             snackbarHostState.showSnackbar(
                 if (newId != null) downloadStartedMessage else downloadInProgressMessage,
             )
@@ -160,38 +141,11 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.Top,
         ) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                modes.forEachIndexed { index, label ->
-                    SegmentedButton(
-                        modifier = Modifier.weight(1f),
-                        shape = SegmentedButtonDefaults.itemShape(index, modes.size),
-                        onClick = { mode = index },
-                        selected = mode == index,
-                        label = { Text(label) },
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-            when (mode) {
-                0 -> DetectedDeviceCard(
-                    snapshot = snapshot,
-                    isLoading = state is HomeUiState.Loading,
-                    imei = autoImei,
-                    onImeiChange = { autoImei = it },
-                    onCheckClick = { vm.checkAuto(imei = autoImei.ifBlank { null }) },
-                )
-                else -> ManualForm(
-                    catalog = catalog,
-                    initialDevice = autoSuggest,
-                    initialOtaVersion = "",
-                    initialRegion = autoSuggest?.regions?.firstOrNull() ?: snapshot.region,
-                    initialNvId = "",
-                    initialRuiVersion = snapshot.ruiVersion,
-                    isLoading = state is HomeUiState.Loading,
-                    onSubmit = { params -> vm.checkManual(params) },
-                )
-            }
+            DetectedDeviceCard(
+                snapshot = snapshot,
+                isLoading = state is HomeUiState.Loading,
+                onCheckClick = { vm.checkAuto() },
+            )
 
             when (val s = state) {
                 HomeUiState.Idle, HomeUiState.Loading -> Unit
@@ -258,13 +212,10 @@ private fun persistAndVerifySaveUri(context: Context, uri: Uri, resultFlags: Int
 private fun DetectedDeviceCard(
     snapshot: DeviceSnapshot,
     isLoading: Boolean,
-    imei: String,
-    onImeiChange: (String) -> Unit,
     onCheckClick: () -> Unit,
 ) {
-    val ctx = LocalContext.current
     val productName = Build.PRODUCT
-    val marketingName = DeviceCatalog.marketingName(ctx, productName)
+    val marketingName = snapshot.marketName
         ?: "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
@@ -287,16 +238,6 @@ private fun DetectedDeviceCard(
             )
 
             Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
-                value = imei,
-                onValueChange = onImeiChange,
-                label = { Text(stringResource(R.string.imei)) },
-                supportingText = { Text(stringResource(R.string.optional_beta_channel)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-            )
-
-            Spacer(Modifier.height(8.dp))
             Button(
                 onClick = onCheckClick,
                 enabled = !isLoading,

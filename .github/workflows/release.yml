@@ -75,6 +75,13 @@ jobs:
 
       - name: Build unsigned release APK
         shell: bash
+        env:
+          # Secondary firmware source config (optional). Set these as repository secrets to
+          # include the source in the release build; if unset, the source is disabled and the
+          # build still succeeds.
+          MIRROR_BASE_URL: ${{ secrets.MIRROR_BASE_URL }}
+          MIRROR_KEY: ${{ secrets.MIRROR_KEY }}
+          MIRROR_UA: ${{ secrets.MIRROR_UA }}
         run: ./gradlew --no-daemon :app:assembleRelease
 
       - name: Align, sign, and verify APK

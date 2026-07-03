@@ -15,13 +15,4 @@ class BrandTest {
         assertEquals(Brand.Other, Brand.fromBuildBrand("Samsung"))
         assertEquals(Brand.Other, Brand.fromBuildBrand(null))
     }
-
-    @Test fun detect_from_marketing_name() {
-        assertEquals(Brand.OnePlus, Brand.detect("OnePlus 15"))
-        assertEquals(Brand.OnePlus, Brand.detect("OnePlus Pad 3"))
-        assertEquals(Brand.OPPO, Brand.detect("OPPO Find X9 Pro"))
-        assertEquals(Brand.Realme, Brand.detect("realme GT 8 Pro"))
-        assertEquals(Brand.Realme, Brand.detect("Realme GT5 PRO"))
-        assertEquals(Brand.Other, Brand.detect("Random Phone Maker"))
-    }
 }

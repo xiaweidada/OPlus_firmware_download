@@ -1,5 +1,7 @@
 package com.desmond.ofd.firmware
 
+import com.desmond.ofd.http.FIRMWARE_ID_HEADER
+import com.desmond.ofd.http.FIRMWARE_ID_VALUE
 import com.desmond.ofd.http.FIRMWARE_USER_AGENT
 import kotlinx.coroutines.suspendCancellableCoroutine
 import okhttp3.Call
@@ -30,6 +32,7 @@ internal object FirmwareDownloadGate {
 
         val builder = Request.Builder()
             .url(url)
+            .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE) // defeats the 2306 anti-leech gate
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
         if (tag != null) builder.tag(tag)

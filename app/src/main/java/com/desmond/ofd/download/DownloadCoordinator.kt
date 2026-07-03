@@ -100,10 +100,6 @@ object DownloadCoordinator {
         val app = context.applicationContext
         appContext = app
         val id = UUID.randomUUID().toString()
-        // TEMP diagnostic: capture which CDN host serves which firmware so we can document
-        // the speed-by-host pattern. Remove once Manual page copy is finalised.
-        val host = runCatching { java.net.URI(params.url).host }.getOrNull()
-        android.util.Log.d("OFD-DL", "host=$host file=${params.displayName}")
         cancelledIds.remove(id)
         activeParams[id] = params
         update(id, DownloadState.Active(params, 0L, params.expectedSize, 0L))
@@ -137,6 +133,7 @@ object DownloadCoordinator {
                 coroutineJobs.remove(id)
                 activeParams.remove(id)
                 cancelledIds.remove(id)
+                engine.clearAuth(id)
             }
         }
         return id
@@ -184,6 +181,8 @@ object DownloadCoordinator {
             contentResolver = context.contentResolver,
             targetUri = params.targetUri,
             expectedSize = params.expectedSize,
+            extraHeaders = params.extraHeaders,
+            authProvider = params.authProvider,
             onProgress = { bytes, total, bps ->
                 val effectiveTotal = if (total > 0) total else params.expectedSize
                 update(id, DownloadState.Active(params, bytes, effectiveTotal, bps))

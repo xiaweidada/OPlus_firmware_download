@@ -80,15 +80,43 @@ class RealmeOtaDownloadSelectorTest {
         assertEquals(RealmeOtaDownloadFailure.NO_DOWNLOAD_URL, selected.reason)
     }
 
+    @Test fun rejects_gka_builds_even_with_a_valid_packet() {
+        val response = otaResponse(
+            manualUrl = "https://component-ota-cn.allawntech.com/downloadCheck?tr=manual",
+            autoUrl = "https://component-ota-cn.allawntech.com/downloadCheck?tr=auto",
+            size = TWO_GIB.toString(),
+            gkaReq = 1,
+        )
+
+        val selected = RealmeOtaDownloadSelector.select(response)
+
+        assertTrue(selected is RealmeOtaDownloadSelection.Failure)
+        selected as RealmeOtaDownloadSelection.Failure
+        assertEquals(RealmeOtaDownloadFailure.GKA_ATTESTATION_REQUIRED, selected.reason)
+    }
+
+    @Test fun ocs_builds_gka_zero_are_selected_normally() {
+        val response = otaResponse(
+            manualUrl = "https://component-ota-cn.allawntech.com/downloadCheck?tr=manual",
+            autoUrl = "https://component-ota-cn.allawntech.com/downloadCheck?tr=auto",
+            size = TWO_GIB.toString(),
+            gkaReq = 0,
+        )
+
+        assertTrue(RealmeOtaDownloadSelector.select(response) is RealmeOtaDownloadSelection.Success)
+    }
+
     private fun otaResponse(
         manualUrl: String?,
         autoUrl: String,
         size: String,
         md5: String = "",
+        gkaReq: Int? = null,
     ): OtaResponseDto = OtaResponseDto(
         realOtaVersion = "PKJ110_11.C.65_1650_202604091920",
         versionName = "PKJ110_16.0.5.702(CN01)",
         securityPatch = "2026-03-01",
+        gkaReq = gkaReq,
         components = listOf(
             Component(
                 componentName = "my_manifest",

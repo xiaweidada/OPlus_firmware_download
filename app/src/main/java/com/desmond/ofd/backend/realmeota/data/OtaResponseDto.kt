@@ -16,6 +16,13 @@ data class OtaResponseDto(
     val securityPatchVendor: String? = null,
     val components: List<Component> = emptyList(),
     val componentAssembleType: Boolean? = null,
+    /**
+     * "GKA" download-authorization mode. When `1`, the CDN requires a hardware-backed
+     * ECDSA attestation (Android KeyStore, alias `intelligent-brain`) on the download
+     * request that a non-device client cannot produce — so the package is undownloadable
+     * off-device. `0`/absent = "OCS" mode, downloadable with the `userId` header alone.
+     */
+    val gkaReq: Int? = null,
     val panelUrl: String? = null,
     val isRecruit: Boolean? = null,
     val checkFailReason: String? = null,

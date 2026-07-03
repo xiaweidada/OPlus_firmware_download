@@ -17,7 +17,6 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
@@ -251,15 +250,9 @@ private fun BackendsBreakdown(state: HomeUiState.Result) {
     )
     Spacer(Modifier.height(6.dp))
     BackendRow(
-        label = stringResource(R.string.backend_label_realme_ota_stable),
-        outcome = state.realmeOtaStable,
-        isWinner = state.winnerLabel == BackendLabels.REALME_OTA_STABLE,
-    )
-    Spacer(Modifier.height(6.dp))
-    BackendRow(
-        label = stringResource(R.string.backend_label_realme_ota_beta),
-        outcome = state.realmeOtaBeta,
-        isWinner = state.winnerLabel == BackendLabels.REALME_OTA_BETA,
+        label = stringResource(R.string.backend_label_realme_ota),
+        outcome = state.realmeOta,
+        isWinner = state.winnerLabel == BackendLabels.REALME_OTA,
     )
 }
 
@@ -271,12 +264,6 @@ private fun BackendRow(label: String, outcome: BackendOutcome, isWinner: Boolean
                 imageVector = Icons.Outlined.CheckCircle,
                 contentDescription = null,
                 tint = if (isWinner) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
-            )
-            is BackendOutcome.Skipped -> Icon(
-                imageVector = Icons.Outlined.Info,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(18.dp),
             )
             is BackendOutcome.Failure, BackendOutcome.NotAttempted -> Icon(
@@ -302,7 +289,6 @@ private fun BackendRow(label: String, outcome: BackendOutcome, isWinner: Boolean
                         stringResource(R.string.backend_older, ver)
                     }
                 }
-                is BackendOutcome.Skipped -> backendMessageText(outcome.reason)
                 is BackendOutcome.Failure -> backendMessageText(outcome.message)
                 BackendOutcome.NotAttempted -> stringResource(R.string.not_run)
             }

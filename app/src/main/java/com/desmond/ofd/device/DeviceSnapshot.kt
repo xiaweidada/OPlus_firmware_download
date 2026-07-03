@@ -31,6 +31,10 @@ data class DeviceSnapshot(
     val oplusRom: String? = null,
     /** `ro.build.display.id`, e.g. `PLK110_16.0.7.206(CN01)`. */
     val displayId: String? = null,
+    /** `ro.vendor.oplus.market.enname` (English marketing name, e.g. `OnePlus 15`); localized fallback. */
+    val marketName: String? = null,
+    /** `ro.vendor.oplus.regionmark` / `persist.sys.oplus.region`, e.g. `CN`. */
+    val regionMark: String? = null,
 ) {
     /** ColorOS generation (1..7) inferred from props, with sensible fallbacks. */
     val ruiVersion: Int by lazy { deriveRuiVersion() }
@@ -63,7 +67,17 @@ data class DeviceSnapshot(
     }
 
     private fun deriveRegion(): Region {
-        // Strongest signal: ro.build.display.id like "PLK110_16.0.7.206(CN01)".
+        // Strongest signal: the device's own region mark (ro.vendor.oplus.regionmark).
+        regionMark?.trim()?.uppercase()?.let { code ->
+            when (code) {
+                "CN" -> return Region.CN
+                "IN" -> return Region.IN
+                "EU" -> return Region.EU
+                "NA" -> return Region.NA
+                "GL", "EX" -> return Region.GL
+            }
+        }
+        // Next: ro.build.display.id like "PLK110_16.0.7.206(CN01)".
         displayId?.let { id ->
             DISPLAY_REGION.find(id)?.groupValues?.get(1)?.uppercase()?.let { code ->
                 when (code) {

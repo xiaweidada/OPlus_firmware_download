@@ -15,11 +15,9 @@ import androidx.navigation.compose.rememberNavController
 import com.desmond.ofd.ui.nav.DownloadsRoute
 import com.desmond.ofd.ui.nav.HomeRoute
 import com.desmond.ofd.ui.nav.InfoRoute
-import com.desmond.ofd.ui.nav.ManualRoute
 import com.desmond.ofd.ui.nav.TopDestination
 import com.desmond.ofd.ui.screens.DownloadsScreen
 import com.desmond.ofd.ui.screens.HomeScreen
-import com.desmond.ofd.ui.screens.ManualScreen
 import com.desmond.ofd.ui.screens.SettingsScreen
 
 @Composable
@@ -48,7 +46,6 @@ fun AppRoot() {
         ) {
             composable<HomeRoute> { HomeScreen() }
             composable<DownloadsRoute> { DownloadsScreen() }
-            composable<ManualRoute> { ManualScreen() }
             composable<InfoRoute> { SettingsScreen() }
         }
     }
@@ -58,7 +55,6 @@ private fun navigateToDestination(navController: NavHostController, destination:
     val route: Any = when (destination) {
         TopDestination.Home -> HomeRoute
         TopDestination.Downloads -> DownloadsRoute
-        TopDestination.Manual -> ManualRoute
         TopDestination.Settings -> InfoRoute
     }
     navController.navigate(route) {

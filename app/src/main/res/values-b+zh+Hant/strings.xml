@@ -3,41 +3,18 @@
 
     <string name="nav_home">首頁</string>
     <string name="nav_downloads">下載</string>
-    <string name="nav_manual">手冊</string>
     <string name="nav_info">資訊</string>
 
-    <string name="mode_auto">自動</string>
-    <string name="mode_manual">手動</string>
     <string name="download_started">已開始下載</string>
     <string name="download_already_in_progress">此韌體已在下載中。請開啟「下載」分頁查看進度。</string>
     <string name="save_location_permission_failed">無法保留該儲存位置的存取權限。請換一個資料夾或檔案提供程式。</string>
     <string name="copied_to_clipboard">已複製 %1$s</string>
     <string name="detected_device">偵測到的裝置</string>
-    <string name="optional_beta_channel">可選，用於嘗試 Beta 通道。</string>
     <string name="checking">正在檢查…</string>
     <string name="check_for_firmware">檢查韌體</string>
     <string name="couldnt_check">無法檢查</string>
     <string name="error_read_device_properties">無法讀取裝置屬性。</string>
 
-    <string name="manual_mode">手動模式</string>
-    <string name="device">裝置</string>
-    <string name="ota_version">OTA 版本</string>
-    <string name="ota_version_help">可選。realme-ota 需要此項。</string>
-    <string name="realmeui_version">ColorOS 版本</string>
-    <string name="rui_option_title">ColorOS %1$d</string>
-    <string name="rui_option_subtitle">Android %1$d，RealmeUI %2$d</string>
-    <string name="region">地區</string>
-    <string name="nv_id">NV ID</string>
-    <string name="nv_id_help">根據地區預設值自動填入。</string>
-    <string name="imei">IMEI</string>
-    <string name="tap_to_choose">點按選擇</string>
-    <string name="pick_device">選擇裝置</string>
-    <plurals name="search_devices">
-        <item quantity="other">搜尋 %1$d 台裝置…</item>
-    </plurals>
-    <string name="clear">清除</string>
-    <string name="no_devices_match">沒有裝置符合「%1$s」</string>
-    <string name="your_device">你的裝置</string>
     <string name="state_selected">已選擇</string>
 
     <string name="latest_firmware">最新韌體</string>
@@ -54,11 +31,7 @@
     <string name="backend_newest">%1$s，最新</string>
     <string name="backend_older">%1$s，較舊</string>
     <string name="backend_label_danielspringer">danielspringer.at</string>
-    <string name="backend_label_realme_ota_stable">realme-ota（穩定版）</string>
-    <string name="backend_label_realme_ota_beta">realme-ota（Beta）</string>
-    <string name="backend_skip_ota_required_realme_ota">realme-ota 需要 OTA 版本</string>
-    <string name="backend_skip_beta_imei_required">填寫 IMEI 後可嘗試 Beta 通道</string>
-    <string name="backend_skip_ota_required_realme_ota_beta">realme-ota Beta 需要 OTA 版本</string>
+    <string name="backend_label_realme_ota">realme-ota</string>
     <string name="backend_error_no_download_packet">realme-ota 未回傳下載包</string>
     <string name="backend_error_no_download_url">realme-ota 未回傳下載連結</string>
     <string name="backend_error_http">HTTP %1$s：%2$s</string>
@@ -68,6 +41,7 @@
     <string name="backend_error_invalid_firmware_size">下載連結返回了無效的全量包大小：%1$s</string>
     <string name="backend_error_download_link_unverified">無法驗證下載連結：%1$s</string>
     <string name="backend_error_antileech_rejected">防盜鏈閘道已拒絕下載（代碼 %1$s）。請稍後重試，或切換到該韌體所屬地區的網路。</string>
+    <string name="backend_error_gka_required">此版本需要裝置端認證才能下載，無法在裝置外取得。請嘗試其他來源。</string>
     <string name="backend_error_model_not_in_catalog">danielspringer 目錄中沒有該機型</string>
     <string name="backend_error_no_message">（無訊息）</string>
     <string name="backend_error_unknown">未知錯誤</string>
@@ -106,36 +80,11 @@
     <string name="info_backends">後端</string>
     <string name="backend_realme_ota_summary">OPPO 線上更新介面。需要目前 OTA 版本。</string>
     <string name="backend_danielspringer_summary">第三方 OnePlus 歷史韌體目錄。</string>
-    <string name="backend_mobile_models_summary">內建裝置目錄來源（KHwang9883/MobileModels）。</string>
     <string name="info_about">關於</string>
     <string name="app_version">應用程式版本</string>
     <string name="source_code">原始碼</string>
     <string name="open_externally">在外部開啟</string>
 
-    <string name="manual_title">手冊</string>
-    <string name="manual_quick_start_title">快速開始</string>
-    <string name="manual_quick_start_body">如果本應用程式執行在要檢查的手機上，請使用自動模式。檢查另一台 OPPO、realme 或 OnePlus 裝置時，請使用手動模式。</string>
-    <string name="manual_auto_title">自動模式</string>
-    <string name="manual_auto_body">開啟首頁，保持選擇自動模式，可選填寫 IMEI 以嘗試 Beta 通道，然後點按檢查韌體。應用程式會從系統屬性讀取裝置型號、OTA 版本、NV ID、ColorOS 版本、ROM 版本與地區。</string>
-    <string name="manual_manual_title">手動模式</string>
-    <string name="manual_manual_body">開啟首頁，選擇手動模式，選取目標裝置，填寫其 OTA 版本和 ColorOS 版本，確認地區和 NV ID，然後點按檢查韌體。realme-ota 需要 OTA 版本。danielspringer.at 後端僅需裝置和地區。</string>
-    <string name="manual_adb_title">透過 ADB 取得資訊</string>
-    <string name="manual_adb_body">如果要檢查的手機不是目前執行本應用程式的手機，請用 ADB 連接並讀取以下屬性：</string>
-    <string name="manual_adb_cmd_product">裝置型號代碼</string>
-    <string name="manual_adb_cmd_ota">OTA 版本（realme-ota 必需）</string>
-    <string name="manual_adb_cmd_nv">NV ID（8 位二進位）</string>
-    <string name="manual_adb_cmd_rui">ColorOS 整數版本</string>
-    <string name="manual_adb_cmd_oplusrom">ROM 版本（如 V16.1.0）</string>
-    <string name="manual_adb_cmd_display">含地區後綴的版本 ID</string>
-    <string name="manual_adb_copy_command">複製指令</string>
-    <string name="manual_speed_title">下載速度與限制</string>
-    <string name="manual_speed_body">下載器會開啟多條並行 HTTP/1.1 連線。實際速度由提供該韌體的 CDN 決定。gauss-compotaauto 系列主機會按 IP 強力限速。較新的 gauss-comp 系列主機給出更高的單連線頻寬，可以接近線路速率。realme-ota 的下載連結是簽署過的，幾分鐘後會過期。若下載因 HTTP 403 或 410 失敗，重新點按檢查韌體即可產生新連結。</string>
-    <string name="manual_caveat_title">ColorOS 16 起的版本涵蓋</string>
-    <string name="manual_caveat_body">從 ColorOS 16 開始，OPPO 不再為每個版本發佈完整韌體 ZIP。部分版本僅以 OTA 增量包形式推送，任何後端都無法下載到。因此這裡顯示的最新結果可能比你手機裡 設定，系統更新 提供的版本舊。應用程式同時查詢 realme-ota（線上）與 danielspringer.at（歷史歸檔），最新韌體卡片會顯示兩者中較新的那個。</string>
-    <string name="manual_md5_title">MD5 驗證</string>
-    <string name="manual_md5_body">如果後端回傳了 MD5，應用程式會在下載完成後用 MessageDigest 串流計算並比對。不相符時會重試兩次，仍失敗則停止下載並自動刪除損壞檔案，避免你刷入壞包。部分後端不提供 MD5。此時結果顯示為「下載完成」而不進行驗證。</string>
-    <string name="manual_errors_title">常見錯誤</string>
-    <string name="manual_errors_body">如果自動模式無法讀取裝置屬性，請切換到手動模式。如果下載連結過期，請重新執行檢查韌體。如果 MD5 驗證失敗，應用程式會重試並刪除錯誤檔案。</string>
 
     <string name="notification_channel_downloads">韌體下載</string>
     <string name="notification_channel_downloads_desc">韌體下載的進度和結果。</string>

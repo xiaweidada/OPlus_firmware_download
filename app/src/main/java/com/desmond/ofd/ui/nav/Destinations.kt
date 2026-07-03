@@ -2,7 +2,6 @@ package com.desmond.ofd.ui.nav
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Info
@@ -18,7 +17,6 @@ import kotlinx.serialization.Serializable
  */
 @Serializable object HomeRoute
 @Serializable object DownloadsRoute
-@Serializable object ManualRoute
 @Serializable object InfoRoute
 
 /** Top-level destination metadata used by the adaptive navigation suite (rail/bar/drawer). */
@@ -29,7 +27,6 @@ enum class TopDestination(
 ) {
     Home(R.string.nav_home, Icons.Outlined.Home, { it?.hasRoute<HomeRoute>() == true }),
     Downloads(R.string.nav_downloads, Icons.Outlined.Download, { it?.hasRoute<DownloadsRoute>() == true }),
-    Manual(R.string.nav_manual, Icons.AutoMirrored.Outlined.MenuBook, { it?.hasRoute<ManualRoute>() == true }),
     Settings(R.string.nav_info, Icons.Outlined.Info, { it?.hasRoute<InfoRoute>() == true });
 
     companion object {

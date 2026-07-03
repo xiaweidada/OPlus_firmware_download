@@ -175,7 +175,9 @@ object RealmeOtaRequest {
         put("mode", if (d.beta) "1" else "0")
         put("registrationId", "unknown")
         put("deviceId", d.deviceId)
-        put("version", "3")
+        // RUI 1 sends "2" here (reference request.py:50-51 sets properties['version']='2');
+        // RUI >= 2 uses the default_body value "3".
+        put("version", if (d.ruiVersion == 1) "2" else "3")
         put("type", "1")
         put("otaPrefix", d.otaPrefix)
         put("isRealme", d.isRealme)
@@ -200,7 +202,8 @@ object RealmeOtaRequest {
         "deviceId" to d.deviceId,
         "mode" to "client_auto",
         "channel" to "pc",
-        "version" to "1",
+        // RUI 1 header version is "2"; RUI >= 2 legacy default is "1" (buildV2 overrides to "2").
+        "version" to if (d.ruiVersion == 1) "2" else "1",
         "Accept" to "application/json",
         "Content-Type" to "application/json",
         "User-Agent" to "NULL",
