@@ -7,6 +7,7 @@
 
     <string name="download_started">已開始下載</string>
     <string name="download_already_in_progress">此韌體已在下載中。請開啟「下載」分頁查看進度。</string>
+    <string name="download_link_failed">無法開始下載：%1$s</string>
     <string name="save_location_permission_failed">無法保留該儲存位置的存取權限。請換一個資料夾或檔案提供程式。</string>
     <string name="copied_to_clipboard">已複製 %1$s</string>
     <string name="detected_device">偵測到的裝置</string>

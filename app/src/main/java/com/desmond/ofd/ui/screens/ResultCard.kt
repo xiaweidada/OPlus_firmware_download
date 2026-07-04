@@ -104,21 +104,26 @@ fun ResultCard(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.download_with_size, formatBytes(winnerOutcome.sizeBytes)))
                 }
-                Spacer(Modifier.height(4.dp))
-                TextButton(
-                    onClick = {
-                        scope.launch {
-                            clipboard.setClipEntry(
-                                ClipEntry(ClipData.newPlainText(downloadUrlLabel, winnerOutcome.downloadUrl)),
-                            )
-                            onCopied(downloadUrlLabel)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.Outlined.ContentCopy, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(stringResource(R.string.copy_url))
+                // Copy is offered only for backends that expose a directly shareable URL. The mirror's
+                // link is a token-gated in-app proxy (blank here), so it stays download-only — copying
+                // it would hand out a non-working, backend-revealing URL.
+                if (winnerOutcome.downloadUrl.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    TextButton(
+                        onClick = {
+                            scope.launch {
+                                clipboard.setClipEntry(
+                                    ClipEntry(ClipData.newPlainText(downloadUrlLabel, winnerOutcome.downloadUrl)),
+                                )
+                                onCopied(downloadUrlLabel)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Outlined.ContentCopy, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.copy_url))
+                    }
                 }
             }
         }

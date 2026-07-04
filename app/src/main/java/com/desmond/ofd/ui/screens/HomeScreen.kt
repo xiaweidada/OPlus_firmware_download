@@ -70,6 +70,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     val downloadInProgressMessage = stringResource(R.string.download_already_in_progress)
     val savePermissionFailedMessage = stringResource(R.string.save_location_permission_failed)
     val copiedMessagePattern = stringResource(R.string.copied_to_clipboard, "%s")
+    val downloadLinkFailedPattern = stringResource(R.string.download_link_failed, "%s")
 
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
     val state by vm.state.collectAsStateWithLifecycle()
@@ -92,10 +93,12 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             return@rememberLauncherForActivityResult
         }
         scope.launch {
-            val newId = vm.startDownload(uri, pendingDownload.outcome, pendingDownload.displayName)
-            snackbarHostState.showSnackbar(
-                if (newId != null) downloadStartedMessage else downloadInProgressMessage,
-            )
+            val message = when (val res = vm.startDownload(uri, pendingDownload.outcome, pendingDownload.displayName)) {
+                is DownloadStart.Started -> downloadStartedMessage
+                DownloadStart.AlreadyRunning -> downloadInProgressMessage
+                is DownloadStart.Failed -> downloadLinkFailedPattern.format(res.reason)
+            }
+            snackbarHostState.showSnackbar(message)
         }
     }
 

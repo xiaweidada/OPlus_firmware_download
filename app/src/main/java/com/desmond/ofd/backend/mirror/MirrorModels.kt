@@ -64,3 +64,13 @@ data class MirrorVersion(
  * URL. Public because it rides on the public `BackendOutcome.Success`.
  */
 data class MirrorProxyRef(val deviceName: String, val otaVersion: String)
+
+/**
+ * Outcome of lazily resolving the mirror's token-gated proxy download URL. [Failed.reason] is a
+ * human-readable explanation so the UI can show why a download/copy could not proceed instead of
+ * silently doing nothing.
+ */
+sealed interface MirrorResolution {
+    data class Resolved(val url: String) : MirrorResolution
+    data class Failed(val reason: String) : MirrorResolution
+}

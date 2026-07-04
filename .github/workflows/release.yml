@@ -82,6 +82,9 @@ jobs:
           MIRROR_BASE_URL: ${{ secrets.MIRROR_BASE_URL }}
           MIRROR_KEY: ${{ secrets.MIRROR_KEY }}
           MIRROR_UA: ${{ secrets.MIRROR_UA }}
+          # Authorized email for the token-gated download source. Without it, the source resolves
+          # metadata but downloads are disabled.
+          MIRROR_EMAIL: ${{ secrets.MIRROR_EMAIL }}
         run: ./gradlew --no-daemon :app:assembleRelease
 
       - name: Align, sign, and verify APK

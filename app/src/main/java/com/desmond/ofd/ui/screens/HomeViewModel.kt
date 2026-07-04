@@ -14,6 +14,7 @@ import com.desmond.ofd.backend.danielspringer.DanielspringerCatalog
 import com.desmond.ofd.backend.danielspringer.DanielspringerClient
 import com.desmond.ofd.backend.mirror.MirrorClient
 import com.desmond.ofd.backend.mirror.MirrorProxyRef
+import com.desmond.ofd.backend.mirror.MirrorResolution
 import com.desmond.ofd.backend.realmeota.data.OtaRequestParams
 import com.desmond.ofd.backend.realmeota.network.OtaResult
 import com.desmond.ofd.backend.realmeota.network.RealmeOtaDownloadFailure
@@ -71,6 +72,13 @@ sealed interface BackendOutcome {
     ) : BackendOutcome
     data class Failure(val message: BackendMessage) : BackendOutcome
     data object NotAttempted : BackendOutcome
+}
+
+/** Result of asking the ViewModel to begin a download. */
+sealed interface DownloadStart {
+    data class Started(val id: String) : DownloadStart
+    data object AlreadyRunning : DownloadStart
+    data class Failed(val reason: String) : DownloadStart
 }
 
 sealed interface HomeUiState {
@@ -134,36 +142,42 @@ class HomeViewModel(
     }
 
     /**
-     * Returns the new download id when scheduled, or `null` when an active download already
-     * matches this firmware (same MD5, or same `displayName + size` when MD5 is unavailable).
+     * Begin a download. Distinguishes the three outcomes the UI must tell apart: it started, an
+     * equivalent download is already running, or the download URL could not be resolved (e.g. the
+     * mirror's token-gated proxy was rejected) — the latter used to masquerade as "already
+     * running", which is why a failed mirror download looked like a no-op.
      */
     suspend fun startDownload(
         targetUri: Uri,
         outcome: BackendOutcome.Success,
         displayName: String,
-    ): String? {
+    ): DownloadStart {
         val ref = outcome.mirrorRef
-        val params = if (ref != null) {
-            // Token-gated proxy: resolve the short-lived URL now and supply a refreshing token.
-            val url = mirrorClient.resolveDownloadUrl(ref.deviceName, ref.otaVersion) ?: return null
-            DownloadParams(
-                url = url,
-                targetUri = targetUri,
-                displayName = displayName,
-                expectedSize = outcome.sizeBytes,
-                expectedMd5 = outcome.md5,
-                authProvider = { mirrorClient.downloadAuthHeaders(ref.deviceName, ref.otaVersion) },
-            )
-        } else {
-            DownloadParams(
+        val params = when {
+            ref != null -> when (val resolution = mirrorClient.resolveDownloadUrl(ref.deviceName, ref.otaVersion)) {
+                // Token-gated proxy: resolve the short-lived URL now and supply a refreshing token.
+                is MirrorResolution.Resolved -> DownloadParams(
+                    url = resolution.url,
+                    targetUri = targetUri,
+                    displayName = displayName,
+                    expectedSize = outcome.sizeBytes,
+                    expectedMd5 = outcome.md5,
+                    authProvider = { mirrorClient.downloadAuthHeaders(ref.deviceName, ref.otaVersion) },
+                )
+                is MirrorResolution.Failed -> return DownloadStart.Failed(resolution.reason)
+            }
+            outcome.downloadUrl.isNotBlank() -> DownloadParams(
                 url = outcome.downloadUrl,
                 targetUri = targetUri,
                 displayName = displayName,
                 expectedSize = outcome.sizeBytes,
                 expectedMd5 = outcome.md5,
             )
+            else -> return DownloadStart.Failed("no download URL available for this result")
         }
         return DownloadCoordinator.start(getApplication(), params)
+            ?.let { DownloadStart.Started(it) }
+            ?: DownloadStart.AlreadyRunning
     }
 
     private suspend fun runCheck(params: OtaRequestParams, marketName: String?) {

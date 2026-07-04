@@ -37,6 +37,9 @@ android {
         buildConfigField("String", "MIRROR_BASE_URL", "\"${secret("mirror.baseUrl", "MIRROR_BASE_URL")}\"")
         buildConfigField("String", "MIRROR_KEY", "\"${secret("mirror.key", "MIRROR_KEY")}\"")
         buildConfigField("String", "MIRROR_UA", "\"${secret("mirror.ua", "MIRROR_UA")}\"")
+        // Authorized (donor) email for the token-gated download source. Blank ⇒ metadata still
+        // resolves but downloads are disabled. Keep a personal donor email OUT of public releases.
+        buildConfigField("String", "MIRROR_EMAIL", "\"${secret("mirror.email", "MIRROR_EMAIL")}\"")
     }
 
     buildTypes {

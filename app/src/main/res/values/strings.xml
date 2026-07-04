@@ -7,6 +7,7 @@
 
     <string name="download_started">Download started</string>
     <string name="download_already_in_progress">This firmware is already being downloaded. Open the Downloads tab to track it.</string>
+    <string name="download_link_failed">Couldn\'t start download: %1$s</string>
     <string name="save_location_permission_failed">Couldn\'t keep access to that save location. Choose another folder or file provider.</string>
     <string name="copied_to_clipboard">%1$s copied</string>
     <string name="detected_device">Detected device</string>
