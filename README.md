@@ -57,24 +57,6 @@ Auto mode reads firmware properties from the current phone:
 Android does not expose these through normal public SDK APIs, so the app reads
 `android.os.SystemProperties` by reflection.
 
-If that fails, the app does not crash. It shows an error card and you can use
-Manual mode instead.
-
-## Manual Mode
-
-Manual mode lets you choose:
-
-- device
-- OTA version
-- ColorOS version
-- region
-- NV ID
-- optional IMEI
-
-The device catalog is bundled in the app. It is based on:
-
-https://github.com/KHwang9883/MobileModels
-
 ## Version Selection
 
 When both backends return firmware, the app compares display versions such as:
