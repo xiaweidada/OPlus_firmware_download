@@ -68,9 +68,13 @@ class VersionResolverTest {
         assertTrue(VersionResolver.compare("PLK110_16.0.7.206(CN01)", "garbage") > 0)
     }
 
-    @Test fun unparseable_vs_unparseable_falls_back_to_string_compare() {
-        assertTrue(VersionResolver.compare("aaa", "bbb") < 0)
+    @Test fun unparseable_vs_unparseable_is_a_tie() {
+        // Not string comparison: two versions we cannot parse are genuinely unrankable, and a
+        // lexicographic guess would decide the winner for reasons unrelated to recency.
+        // A tie hands the decision to backend precedence instead.
+        assertEquals(0, VersionResolver.compare("aaa", "bbb"))
         assertEquals(0, VersionResolver.compare("xxx", "xxx"))
+        assertEquals(0, VersionResolver.compare("NE2213_11_C.26", "NE2213_11_A.17"))
     }
 
     @Test fun parse_drops_prefix_and_suffix() {

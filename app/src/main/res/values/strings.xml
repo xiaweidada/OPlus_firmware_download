@@ -22,13 +22,14 @@
     <string name="download_with_size">Download (%1$s)</string>
     <string name="download_url">Download URL</string>
     <string name="copy_url">Copy URL</string>
+    <string name="copy_url_failed">Couldn\'t produce a shareable link. Try checking again.</string>
     <string name="size">Size</string>
     <string name="build_date">Build date</string>
     <string name="md5">MD5</string>
     <string name="copy_md5">Copy MD5</string>
-    <string name="url_expired_recheck">URL expired, re-check</string>
-    <string name="url_valid_minutes_seconds">URL valid for %1$dm %2$02ds</string>
-    <string name="url_valid_seconds">URL valid for %1$ds</string>
+    <string name="url_expired_recheck">Copied link expired — copy again</string>
+    <string name="url_valid_minutes_seconds">Copied link valid for %1$dm %2$02ds</string>
+    <string name="url_valid_seconds">Copied link valid for %1$ds</string>
     <string name="backend_newest">%1$s, newest</string>
     <string name="backend_older">%1$s, older</string>
     <string name="backend_label_danielspringer">danielspringer.at</string>
@@ -93,4 +94,15 @@
     <string name="notification_idle">Idle</string>
     <string name="notification_n_downloads">%1$d downloads in progress</string>
     <string name="notification_some_failed">Finished with errors</string>
+    <string name="backend_label_mirror">Mirror</string>
+    <string name="backend_error_model_not_covered">This source doesn\'t carry this model</string>
+    <string name="backend_error_source_unavailable">Source unavailable right now</string>
+    <string name="backend_mirror_summary">Secondary source, mainly China-market models.</string>
+    <string name="mirror_error_not_configured">This build has no secondary source configured.</string>
+    <string name="mirror_error_no_authorized_email">Downloads from the secondary source aren\'t enabled in this build.</string>
+    <string name="mirror_error_no_ota_version">This firmware has no OTA build id, so no download can be requested.</string>
+    <string name="mirror_error_token_rejected">The secondary source refused the download request.</string>
+    <string name="mirror_error_no_link">The secondary source returned no download link.</string>
+    <string name="copy_diagnostics">Copy diagnostics</string>
+    <string name="copy_url_working">Preparing link…</string>
 </resources>

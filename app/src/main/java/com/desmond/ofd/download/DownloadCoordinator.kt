@@ -133,7 +133,6 @@ object DownloadCoordinator {
                 coroutineJobs.remove(id)
                 activeParams.remove(id)
                 cancelledIds.remove(id)
-                engine.clearAuth(id)
             }
         }
         return id
@@ -177,12 +176,10 @@ object DownloadCoordinator {
     ) {
         val outcome = engine.download(
             downloadId = id,
-            url = params.url,
+            urlProvider = params.urlProvider,
             contentResolver = context.contentResolver,
             targetUri = params.targetUri,
             expectedSize = params.expectedSize,
-            extraHeaders = params.extraHeaders,
-            authProvider = params.authProvider,
             onProgress = { bytes, total, bps ->
                 val effectiveTotal = if (total > 0) total else params.expectedSize
                 update(id, DownloadState.Active(params, bytes, effectiveTotal, bps))
@@ -258,8 +255,11 @@ object DownloadCoordinator {
                 runWithRetries(context, id, params, md5RetriesLeft, networkRetriesLeft - 1)
             }
             is DownloadEngine.DownloadOutcome.HttpError -> {
+                // 401/403/410 here mean the pre-signed link died. Retrying calls the URL
+                // provider again, which mints a fresh one — so these are transient, not fatal.
                 val transient = outcome.code in 500..599 ||
-                    outcome.code == 408 || outcome.code == 429
+                    outcome.code == 408 || outcome.code == 429 ||
+                    outcome.code == 401 || outcome.code == 403 || outcome.code == 410
                 val active = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive == true
                 if (!active) {
                     throw CancellationException("Download cancelled")
@@ -284,10 +284,7 @@ object DownloadCoordinator {
                     runWithRetries(context, id, params, md5RetriesLeft, networkRetriesLeft - 1)
                 } else {
                     deletePartialFile(context, params.targetUri)
-                    val hint = if (outcome.code == 403 || outcome.code == 410) {
-                        " (URL may have expired, re-run Check for firmware)"
-                    } else ""
-                    update(id, DownloadState.Failed(params, "HTTP ${outcome.code}: ${outcome.message}$hint"))
+                    update(id, DownloadState.Failed(params, "HTTP ${outcome.code}: ${outcome.message}"))
                 }
             }
         }

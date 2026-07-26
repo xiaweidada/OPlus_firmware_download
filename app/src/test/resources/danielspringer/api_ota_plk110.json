@@ -1,0 +1,24 @@
+{
+  "api_version": "1",
+  "documentation": "https://roms.danielspringer.at/api/ota.php?help=1",
+  "available_filters": ["device", "region", "model", "id", "latest", "since"],
+  "catalog_updated_at": "2026-07-25T17:49:44+00:00",
+  "count": 1,
+  "filters": {"device": null, "region": null, "model": "PLK110", "id": null, "latest": true, "since": null},
+  "ordering": "device, region, version (natural ascending)",
+  "releases": [
+    {
+      "id": "3b5d587252378a1f481ba35c",
+      "device": "OP 15",
+      "region": "CN",
+      "model": "PLK110",
+      "version": "PLK110_16.0.9.400(CN01)",
+      "ota_version": "PLK110_11.A.68_0680_202606250030",
+      "build_timestamp": "2026-06-25T00:30:00",
+      "security_patch": "2026-07-01",
+      "source_url": "https://component-ota-cn.allawntech.com/downloadCheck?c=143059dd252d32e338e77b420aeae6b3&p=a6c78fdd375388883cce8fac17cb6530&d=e181cd82745f88956e8098ec0182623b&g=10eab6008d5642cf42abd2aa41f847cb&id=6a4df00f9e207b01827c76f3&taste=1&supportDLTaste=0&mode=1&tr=manual&s=01d58b7707754d7caef0575068ee8a15",
+      "changelog_url": "https://gauss-compotacostauto-cn.allawnfs.com/remove-143059dd252d32e338e77b420aeae6b3/component-ota/26/07/03/6bd517eaf63a4073a312ebd952f94de6.html",
+      "is_latest": true
+    }
+  ]
+}

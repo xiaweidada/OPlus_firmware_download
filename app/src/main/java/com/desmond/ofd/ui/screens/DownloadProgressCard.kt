@@ -34,6 +34,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.desmond.ofd.R
+import com.desmond.ofd.diag.redactMirrorIdentifiers
+import com.desmond.ofd.diag.redactSafUri
+import com.desmond.ofd.diag.render
 import com.desmond.ofd.download.DownloadState
 import kotlinx.coroutines.launch
 
@@ -204,17 +207,24 @@ private fun FailedContent(state: DownloadState.Failed, onDismiss: () -> Unit) {
     }
 }
 
+/**
+ * The report the user copies and sends on. Falls back to a bare form only when a download was
+ * somehow started without a check behind it; that fallback still goes through redaction, and
+ * deliberately omits the raw SAF URI, which carries the user's folder names.
+ */
 private fun DownloadState.Failed.errorReport(): String =
-    """
-    OPlus Firmware download failure
-    File: ${params.displayName}
-    Target URI: ${params.targetUri}
-    Expected size: ${params.expectedSize}
-    Expected MD5: ${params.expectedMd5 ?: "(none)"}
+    params.diagnostics?.render(error) ?: redactMirrorIdentifiers(
+        """
+        OPlus Firmware download failure
+        File: ${params.displayName}
+        Target: ${redactSafUri(params.targetUri.toString())}
+        Expected size: ${params.expectedSize}
+        Expected MD5: ${params.expectedMd5 ?: "(none)"}
 
-    Error:
-    $error
-    """.trimIndent()
+        Error:
+        $error
+        """.trimIndent(),
+    )
 
 private fun formatBytesShort(bytes: Long): String = when {
     bytes <= 0 -> "—"

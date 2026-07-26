@@ -59,49 +59,28 @@ class DownloadEngine(
 
     private val callsByDownload = ConcurrentHashMap<String, MutableSet<Call>>()
 
-    private class DownloadAuth(
-        val extraHeaders: Map<String, String>,
-        val authProvider: (suspend () -> Map<String, String>)?,
-    )
-    private val authByDownload = ConcurrentHashMap<String, DownloadAuth>()
-
-    /**
-     * Static extra headers plus a fresh set from the (optional) auth provider — evaluated per
-     * request so a short-lived download token refreshes across chunks/retries. Empty for direct
-     * downloads that registered no auth.
-     */
-    private suspend fun authHeaders(downloadId: String): Map<String, String> {
-        val auth = authByDownload[downloadId] ?: return emptyMap()
-        return auth.extraHeaders + (auth.authProvider?.invoke() ?: emptyMap())
-    }
-
     fun cancel(downloadId: String) {
         callsByDownload[downloadId]?.forEach { call ->
             runCatching { call.cancel() }
         }
     }
 
-    /** Drop a download's registered auth once the whole download (all retries) is done. */
-    fun clearAuth(downloadId: String) {
-        authByDownload.remove(downloadId)
-    }
+    /** Carries the status code so callers can tell "link expired" from a generic transport error. */
+    private class ChunkHttpException(val code: Int, message: String) : IOException(message)
 
     suspend fun download(
         downloadId: String,
-        url: String,
+        urlProvider: DownloadUrlProvider,
         contentResolver: ContentResolver,
         targetUri: Uri,
         expectedSize: Long,
-        extraHeaders: Map<String, String> = emptyMap(),
-        authProvider: (suspend () -> Map<String, String>)? = null,
         onProgress: suspend (bytesDownloaded: Long, totalBytes: Long, speedBps: Long) -> Unit,
     ): DownloadOutcome {
-        authByDownload[downloadId] = DownloadAuth(extraHeaders, authProvider)
-        val resolvedUrl = when (val resolved = resolveDownloadUrl(downloadId, url)) {
-            is FirmwareDownloadGateResult.Success -> resolved.resolvedUrl
-            is FirmwareDownloadGateResult.Failure -> return DownloadOutcome.IoError(
-                formatMessage("download gate", targetUri, resolved.detail),
-            )
+        val urls = UrlHolder(urlProvider) { raw -> resolveGateUrl(downloadId, raw) }
+        val resolvedUrl = try {
+            urls.resolveInitial()
+        } catch (e: IOException) {
+            return DownloadOutcome.IoError(formatThrowable("download gate", targetUri, e))
         }
         val probe = probeSize(downloadId, resolvedUrl)
         val totalSize = probe.totalSize.takeIf { it > 0 } ?: expectedSize
@@ -153,7 +132,7 @@ class DownloadEngine(
                                 async(workerDispatcher) {
                                     downloadChunkWithRetry(
                                         downloadId = downloadId,
-                                        url = resolvedUrl,
+                                        urls = urls,
                                         targetUri = targetUri,
                                         outputChannel = output.channel,
                                         chunk = chunk,
@@ -184,11 +163,19 @@ class DownloadEngine(
         return DownloadOutcome.Success(totalSize)
     }
 
-    private suspend fun resolveDownloadUrl(downloadId: String, url: String): FirmwareDownloadGateResult =
+    /**
+     * Turn whatever the provider handed back into a directly fetchable URL: OPPO's
+     * `/downloadCheck` gate needs one anti-leech hop first, everything else is already final.
+     * Throws so the gate's own explanation survives into the failure message.
+     */
+    private suspend fun resolveGateUrl(downloadId: String, url: String): String =
         if (FirmwareDownloadGate.isOplusDownloadGate(url)) {
-            FirmwareDownloadGate.resolve(url, httpClient, downloadId)
+            when (val resolved = FirmwareDownloadGate.resolve(url, httpClient, downloadId)) {
+                is FirmwareDownloadGateResult.Success -> resolved.resolvedUrl
+                is FirmwareDownloadGateResult.Failure -> throw IOException(resolved.detail)
+            }
         } else {
-            FirmwareDownloadGateResult.Success(url)
+            url
         }
 
     private suspend fun probeSize(downloadId: String, url: String): SizeProbe = withContext(workerDispatcher) {
@@ -199,7 +186,6 @@ class DownloadEngine(
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
             .tag(downloadId)
-        authHeaders(downloadId).forEach { (k, v) -> builder.header(k, v) }
         val req = builder.build()
         val call = httpClient.newCall(req)
         val unregister = registerCall(downloadId, call)
@@ -283,19 +269,26 @@ class DownloadEngine(
      * Wraps [downloadChunk] with in-task resume. On transient I/O failure, a chunk keeps the
      * bytes already written and requests only the remaining range. Only consecutive failures
      * that make no forward progress count against [maxStalledAttempts].
+     *
+     * A rejection that means "this link expired" ([URL_REFRESH_CODES]) is handled separately:
+     * the chunk asks [urls] for a fresh URL and retries immediately without counting a stall.
+     * Otherwise a signature expiring part-way through a multi-GB download would fail every
+     * chunk at once and discard gigabytes of correctly written bytes.
      */
     private suspend fun downloadChunkWithRetry(
         downloadId: String,
-        url: String,
+        urls: UrlHolder,
         targetUri: Uri,
         outputChannel: FileChannel,
         chunk: Chunk,
         totalSize: Long,
         downloaded: AtomicLong,
         maxStalledAttempts: Int = 3,
+        maxUrlRefreshes: Int = 5,
     ) {
         var bytesDone = 0L
         var stalledAttempts = 0
+        var urlRefreshes = 0
         var lastError: IOException? = null
         while (bytesDone < chunk.length) {
             // Honour cancellation BEFORE another retry — when the coordinator cancels the
@@ -304,6 +297,7 @@ class DownloadEngine(
                 throw CancellationException("Chunk ${chunk.index} cancelled before retry")
             }
             if (stalledAttempts >= maxStalledAttempts) break
+            val (url, generation) = urls.current()
             val attemptStartBytes = bytesDone
             try {
                 downloadChunk(
@@ -333,6 +327,12 @@ class DownloadEngine(
                     throw CancellationException("Chunk ${chunk.index} cancelled mid-read").apply { initCause(e) }
                 }
                 lastError = e
+                // "Link expired" is not a stall: the bytes already written are still good and a
+                // fresh URL fetches the rest. Bounded so a genuinely forbidden URL still fails.
+                if (e is ChunkHttpException && e.code in URL_REFRESH_CODES && urlRefreshes < maxUrlRefreshes) {
+                    urlRefreshes += 1
+                    if (urls.refresh(generation) != null) continue
+                }
                 if (bytesDone > attemptStartBytes) {
                     stalledAttempts = 0
                 } else {
@@ -363,14 +363,13 @@ class DownloadEngine(
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
             .tag(downloadId)
-        authHeaders(downloadId).forEach { (k, v) -> builder.header(k, v) }
         val request = builder.build()
         val call = httpClient.newCall(request)
         val unregister = registerCall(downloadId, call)
         try {
             call.await().use { resp ->
                 if (resp.code != 206) {
-                    throw IOException("Chunk ${chunk.index} HTTP ${resp.code}")
+                    throw ChunkHttpException(resp.code, "Chunk ${chunk.index} HTTP ${resp.code}")
                 }
                 val contentRange = parseContentRange(resp.header("Content-Range"))
                     ?: throw IOException("Chunk ${chunk.index}: missing/invalid Content-Range")
@@ -434,7 +433,6 @@ class DownloadEngine(
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
             .tag(downloadId)
-        authHeaders(downloadId).forEach { (k, v) -> builder.header(k, v) }
         val request = builder.build()
         val call = httpClient.newCall(request)
         val unregister = registerCall(downloadId, call)
@@ -575,6 +573,9 @@ class DownloadEngine(
     companion object {
         // 64 chunks per large download, with enough download-only workers for two full-speed
         // downloads at once. Extra downloads queue/share this pool without starving app IO.
+        // Statuses that mean "this pre-signed link is no longer valid" rather than "this file
+        // is not available": worth re-resolving the URL, not worth failing the download over.
+        private val URL_REFRESH_CODES = setOf(401, 403, 410)
         const val CHUNKS_PER_DOWNLOAD = 64
         const val MAX_CONCURRENT_CALLS = CHUNKS_PER_DOWNLOAD * 2
         private const val BUFFER_SIZE = 256 * 1024

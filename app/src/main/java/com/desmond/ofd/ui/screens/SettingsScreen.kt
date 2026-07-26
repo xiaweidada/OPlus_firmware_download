@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.desmond.ofd.BuildConfig
 import com.desmond.ofd.R
+import com.desmond.ofd.backend.mirror.MirrorConfig
 import com.desmond.ofd.update.UpdateChecker
 import kotlinx.coroutines.launch
 
@@ -143,6 +144,15 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         subtitle = stringResource(R.string.backend_danielspringer_summary),
                         onClick = { open(URL_DANIELSPRINGER) },
                     )
+                    // Listed only when this build actually has it, matching the result card. No
+                    // link: the source is deliberately unnamed, so there is nowhere to send anyone.
+                    if (MirrorConfig.isConfigured) {
+                        HorizontalDivider()
+                        PlainRow(
+                            title = stringResource(R.string.backend_label_mirror),
+                            subtitle = stringResource(R.string.backend_mirror_summary),
+                        )
+                    }
                 }
             }
 
@@ -268,6 +278,15 @@ private fun LinkRow(title: String, subtitle: String, onClick: () -> Unit) {
             )
         },
         modifier = Modifier.clickable(onClick = onClick),
+    )
+}
+
+/** A backend row with nowhere to link to. */
+@Composable
+private fun PlainRow(title: String, subtitle: String) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(subtitle) },
     )
 }
 

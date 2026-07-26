@@ -54,14 +54,20 @@ class DanielspringerCatalog(val devices: Map<String, Map<String, List<String>>>)
     companion object {
         private val json = Json { ignoreUnknownKeys = true }
 
-        /** Parse the form HTML and return a fully-built [DanielspringerCatalog]. */
+        /**
+         * Parse the form HTML into a catalog.
+         *
+         * Degrades to an empty catalog rather than throwing: a markup change should surface as
+         * "this model isn't listed", which callers already handle, instead of an exception that
+         * has to be caught correctly at every call site. Callers should treat [modelCount] of 0
+         * as a parse failure and decline to cache it.
+         */
         fun parse(formHtml: String): DanielspringerCatalog {
-            val doc = Jsoup.parse(formHtml)
-            val select = doc.selectFirst("select#device")
-                ?: error("Form HTML missing <select id=\"device\">")
-            val raw = select.attr("data-devices")
-            if (raw.isBlank()) error("data-devices attribute is empty")
-            val parsed = json.decodeFromString<Map<String, Map<String, List<String>>>>(raw)
+            val raw = Jsoup.parse(formHtml).selectFirst("select#device")?.attr("data-devices")
+            if (raw.isNullOrBlank()) return DanielspringerCatalog(emptyMap())
+            val parsed = runCatching {
+                json.decodeFromString<Map<String, Map<String, List<String>>>>(raw)
+            }.getOrElse { emptyMap() }
             return DanielspringerCatalog(parsed)
         }
     }

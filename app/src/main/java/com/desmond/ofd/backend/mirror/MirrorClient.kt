@@ -5,6 +5,8 @@ import android.util.Log
 import com.desmond.ofd.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.DeserializationStrategy
 import kotlinx.serialization.KSerializer
@@ -14,7 +16,6 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import java.io.IOException
 import java.net.URLEncoder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -25,9 +26,9 @@ import java.util.concurrent.TimeUnit
  * names the upstream in the UI. Configuration (base URL / signing key / user-agent) lives in
  * BuildConfig, sourced from git-ignored `local.properties`; blank values disable the source.
  *
- * Version listing is open (path-signed only). The proxy download link is token-gated, so it is
- * resolved lazily at download time and its short-lived token is refreshed per chunk via
- * [downloadAuthHeaders].
+ * Version listing is open (path-signed only). Download links are token-gated and short-lived, so
+ * they are minted lazily at download time — and the proxy's redirect is followed here rather than
+ * downstream, so the downloader never has to carry a mirror credential.
  */
 class MirrorClient(
     context: Context,
@@ -50,6 +51,12 @@ class MirrorClient(
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
+
+    /** Used for the proxy hop, where the `Location` is the payload rather than something to follow. */
+    private val noRedirectHttp = http.newBuilder()
+        .followRedirects(false)
+        .followSslRedirects(false)
+        .build()
     private val prefs = context.applicationContext.getSharedPreferences("ofd_mirror", Context.MODE_PRIVATE)
 
     /** Stable per-install id (an abuse key, not a hardware id), generated once. */
@@ -62,81 +69,136 @@ class MirrorClient(
     @Volatile private var deviceCache: List<MirrorDeviceModel>? = null
     private class TokenState(val token: String, val expiresAtMillis: Long)
     private val tokens = ConcurrentHashMap<String, TokenState>()
+    private val tokenMutex = Mutex()
 
-    /** Latest full-package metadata for [modelCode], or null if unsupported/unavailable. */
-    suspend fun resolveLatest(modelCode: String): MirrorVersion? {
-        if (!enabled) return null
+    /**
+     * Latest full-package metadata for [modelCode].
+     *
+     * Distinguishes the three ways this comes up empty — unconfigured build, model outside the
+     * mirror's catalog, and mirror trouble — because collapsing them made "the source is down"
+     * indistinguishable from "this build has no mirror", which is undiagnosable from a bug report.
+     */
+    suspend fun resolveLatest(modelCode: String): MirrorLookup {
+        if (!enabled) return MirrorLookup.Unavailable(MirrorUnavailableReason.NOT_CONFIGURED)
         return runCatching {
-            val deviceName = deviceNameFor(modelCode) ?: return null
+            val deviceName = deviceNameFor(modelCode)
+                ?: return MirrorLookup.Unavailable(MirrorUnavailableReason.MODEL_NOT_COVERED)
             val fv = getDecoded("/api/coloros/fullVersions/${enc(deviceName)}", MirrorVersionDto.serializer())
-                ?: return null
-            if (fv.error != null || fv.romVersion.isBlank()) return null
-            MirrorVersion(
-                deviceName = deviceName,
-                versionName = fv.romVersion,
-                otaVersion = fv.otaVersion,
-                sizeBytes = fv.sizeBytes.toLongOrNull() ?: -1L,
-                md5 = fv.md5.ifBlank { null },
-                securityPatch = fv.securityPatch.ifBlank { null },
+                ?: return MirrorLookup.Unavailable(MirrorUnavailableReason.UNAVAILABLE)
+            // The endpoint answers HTTP 200 with an `error` field for an unknown device.
+            if (fv.error != null) return MirrorLookup.Unavailable(MirrorUnavailableReason.MODEL_NOT_COVERED)
+            if (fv.romVersion.isBlank()) return MirrorLookup.Unavailable(MirrorUnavailableReason.UNAVAILABLE)
+            MirrorLookup.Found(
+                MirrorVersion(
+                    deviceName = deviceName,
+                    versionName = fv.romVersion,
+                    otaVersion = fv.otaVersion,
+                    sizeBytes = fv.sizeBytes.toLongOrNull() ?: -1L,
+                    md5 = fv.md5.ifBlank { null },
+                    securityPatch = fv.securityPatch.ifBlank { null },
+                ),
             )
-        }.getOrNull()
+        }.getOrElse { e ->
+            if (e is CancellationException) throw e
+            MirrorLookup.Unavailable(MirrorUnavailableReason.UNAVAILABLE)
+        }
     }
 
     /**
-     * Resolve the short-lived proxy download URL, at download time. Returns a typed result so
-     * callers can surface *why* it failed (rejected token, empty response, network error, …)
-     * instead of collapsing every failure to a bare null.
+     * Resolve a ready-to-download URL, at download time. Returns a typed result so callers can
+     * surface *why* it failed (rejected token, empty response, network error, …) instead of
+     * collapsing every failure to a bare null.
+     *
+     * The proxy answers with a 302 to a pre-signed OPPO CDN URL. That hop is followed *here*,
+     * with the mirror's own client, and only the CDN URL is handed back. Two consequences that
+     * the download path depends on:
+     *
+     *  - No mirror credential ever reaches OPPO's CDN. OkHttp forwards custom headers across a
+     *    cross-host redirect, and the download token is a JWT whose `sub` is the authorized
+     *    email — following the redirect downstream would hand that to a third party.
+     *  - The returned URL needs no headers at all and outlives the ~2 min token, so the
+     *    downloader needs nothing mirror-specific. It does carry its own signature expiry,
+     *    which is why callers must be able to ask for a fresh one (see [DownloadParams]).
      */
     suspend fun resolveDownloadUrl(deviceName: String, otaVersion: String): MirrorResolution {
-        if (!enabled) return MirrorResolution.Failed("mirror source is not configured")
+        if (!enabled) return MirrorResolution.Failed(MirrorDownloadFailure.NOT_CONFIGURED)
         if (downloadEmail.isBlank()) {
-            return MirrorResolution.Failed("mirror downloads aren't set up for this build (no authorized email)")
+            return MirrorResolution.Failed(MirrorDownloadFailure.NO_AUTHORIZED_EMAIL)
         }
         if (otaVersion.isBlank()) {
-            return MirrorResolution.Failed("this firmware has no OTA build id, so the mirror can't resolve a download")
+            return MirrorResolution.Failed(MirrorDownloadFailure.NO_OTA_VERSION)
         }
         return runCatching {
             val token = acquireToken(deviceName, otaVersion)
-                ?: return MirrorResolution.Failed("download-token request was rejected by the mirror")
+                ?: return MirrorResolution.Failed(MirrorDownloadFailure.TOKEN_REJECTED)
             val headers = mapOf("X-Download-Token" to token, "X-Client-Fingerprint" to fingerprint)
             val links = getDecoded(
                 "/api/coloros/download/${enc(deviceName)}/${enc(otaVersion)}",
                 MirrorDownloadLinks.serializer(),
                 headers,
-            ) ?: return MirrorResolution.Failed("mirror download endpoint returned no usable response")
-            val url = links.fullUrl.ifBlank { null }
-                ?: return MirrorResolution.Failed(
-                    links.message.ifBlank { "mirror response contained no full-package URL" },
-                )
-            MirrorResolution.Resolved(url)
+            ) ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
+            val proxyUrl = links.fullUrl.ifBlank { null }
+                ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
+            val pinned = followProxyRedirect(proxyUrl, token)
+                ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
+            MirrorResolution.Resolved(pinned)
         }.getOrElse { e ->
             if (e is CancellationException) throw e
-            Log.w(TAG, "resolveDownloadUrl failed for $deviceName / $otaVersion", e)
-            MirrorResolution.Failed(e.message ?: e::class.simpleName ?: "unknown mirror error")
+            if (BuildConfig.DEBUG) Log.w(TAG, "resolveDownloadUrl failed for $deviceName", e)
+            MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
         }
     }
 
     /**
-     * Token + fingerprint headers for the proxy download, refreshed near expiry. Invoked per
-     * chunk by the download engine; throws (rather than sending an empty token) when no token can
-     * be obtained, so the failure surfaces as a visible download error.
+     * GET the proxy URL *without* following redirects and return the absolute `Location`.
+     *
+     * The proxy validates the token, the fingerprint and the mirror User-Agent on this hop only
+     * — a browser-ish UA here is refused with `403 {"error":"Access Denied"}`, which is why this
+     * must use the mirror's own client rather than the download engine's.
      */
-    suspend fun downloadAuthHeaders(deviceName: String, otaVersion: String): Map<String, String> {
-        val token = acquireToken(deviceName, otaVersion)
-            ?: throw IOException("mirror download token unavailable")
-        return mapOf("X-Download-Token" to token, "X-Client-Fingerprint" to fingerprint)
-    }
+    private suspend fun followProxyRedirect(proxyUrl: String, token: String): String? =
+        withContext(Dispatchers.IO) {
+            val request = Request.Builder()
+                .url(proxyUrl)
+                .header("User-Agent", userAgent)
+                .header("X-Download-Token", token)
+                .header("X-Client-Fingerprint", fingerprint)
+                .header("Accept", "*/*")
+                .build()
+            noRedirectHttp.newCall(request).execute().use { resp ->
+                if (resp.code !in 300..399) {
+                    if (BuildConfig.DEBUG) Log.w(TAG, "proxy redirect hop -> HTTP ${resp.code}")
+                    return@withContext null
+                }
+                resp.header("Location")?.let { resp.request.url.resolve(it)?.toString() }
+            }
+        }
 
     /**
      * A usable download token for [deviceName]+[otaVersion]: the cached one while fresh, otherwise
-     * a freshly issued one. If re-issue fails but a (near-)expired token is still cached, that is
-     * returned as a best-effort fallback. Returns null only when no token can be produced at all.
+     * a freshly issued one. Returns null only when no token can be produced at all.
+     *
+     * Issuance is single-flight. Tokens live ~2 minutes, so without the lock a download that
+     * re-resolves from several chunks at once would fire one token POST per chunk — a burst the
+     * mirror would be right to rate-limit.
      */
     private suspend fun acquireToken(deviceName: String, otaVersion: String): String? {
         val cacheKey = "$deviceName|$otaVersion"
+        cachedFreshToken(cacheKey)?.let { return it }
+        return tokenMutex.withLock {
+            // Re-check: another caller may have issued one while we waited for the lock.
+            cachedFreshToken(cacheKey) ?: issueToken(cacheKey, deviceName, otaVersion)
+        }
+    }
+
+    private fun cachedFreshToken(cacheKey: String): String? {
+        val cached = tokens[cacheKey] ?: return null
+        return cached.token.takeIf { System.currentTimeMillis() < cached.expiresAtMillis - REFRESH_MARGIN_MS }
+    }
+
+    /** Issue a new token. On failure, falls back to a stale cached one rather than giving up. */
+    private suspend fun issueToken(cacheKey: String, deviceName: String, otaVersion: String): String? {
         val now = System.currentTimeMillis()
-        val cached = tokens[cacheKey]
-        if (cached != null && now < cached.expiresAtMillis - REFRESH_MARGIN_MS) return cached.token
         val body = json.encodeToString(
             MirrorTokenRequest.serializer(),
             MirrorTokenRequest(email = downloadEmail, device = deviceName, otaVersion = otaVersion, packageType = "full"),
@@ -145,13 +207,12 @@ class MirrorClient(
             "/api/coloros/premium/download-token", body, MirrorTokenResponse.serializer(),
             mapOf("X-Client-Fingerprint" to fingerprint),
         )
-        val fresh = resp?.token.orEmpty()
-        if (fresh.isNotBlank()) {
-            tokens[cacheKey] = TokenState(fresh, now + resp!!.expiresIn.coerceAtLeast(30) * 1000)
-            return fresh
+        val issued = resp?.token.orEmpty()
+        if (issued.isNotBlank()) {
+            tokens[cacheKey] = TokenState(issued, now + resp!!.expiresIn.coerceAtLeast(30) * 1000)
+            return issued
         }
-        // Re-issue produced no token: reuse the last good one if we still have it.
-        return cached?.token
+        return tokens[cacheKey]?.token
     }
 
     // ---- internals ----
@@ -220,7 +281,7 @@ class MirrorClient(
         }
         http.newCall(builder.build()).execute().use { resp ->
             if (!resp.isSuccessful) {
-                Log.w(TAG, "$method $apiPath -> HTTP ${resp.code}")
+                if (BuildConfig.DEBUG) Log.w(TAG, "$method $apiPath -> HTTP ${resp.code}")
                 return@withContext null
             }
             val raw = resp.body?.string().orEmpty()
@@ -240,4 +301,17 @@ class MirrorClient(
         const val REFRESH_MARGIN_MS = 15_000L
         val PLAIN_TEXT = "text/plain; charset=utf-8".toMediaType()
     }
+}
+
+/**
+ * Whether this build has a mirror configured at all.
+ *
+ * Shared so the UI and the backend agree: an open-source clone builds with blank secrets, and a
+ * backend row that can only ever fail reads as a bug rather than as an absent optional source.
+ */
+object MirrorConfig {
+    val isConfigured: Boolean =
+        BuildConfig.MIRROR_BASE_URL.isNotBlank() &&
+            BuildConfig.MIRROR_KEY.isNotBlank() &&
+            BuildConfig.MIRROR_UA.isNotBlank()
 }

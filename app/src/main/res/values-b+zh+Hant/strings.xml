@@ -22,13 +22,14 @@
     <string name="download_with_size">下載（%1$s）</string>
     <string name="download_url">下載連結</string>
     <string name="copy_url">複製連結</string>
+    <string name="copy_url_failed">無法產生可分享的連結，請重新檢查。</string>
     <string name="size">大小</string>
     <string name="build_date">建置日期</string>
     <string name="md5">MD5</string>
     <string name="copy_md5">複製 MD5</string>
-    <string name="url_expired_recheck">連結已過期，請重新檢查</string>
-    <string name="url_valid_minutes_seconds">連結有效期 %1$d 分 %2$02d 秒</string>
-    <string name="url_valid_seconds">連結有效期 %1$d 秒</string>
+    <string name="url_expired_recheck">複製的連結已過期，請重新複製</string>
+    <string name="url_valid_minutes_seconds">複製的連結有效期 %1$d 分 %2$02d 秒</string>
+    <string name="url_valid_seconds">複製的連結有效期 %1$d 秒</string>
     <string name="backend_newest">%1$s，最新</string>
     <string name="backend_older">%1$s，較舊</string>
     <string name="backend_label_danielspringer">danielspringer.at</string>
@@ -93,4 +94,15 @@
     <string name="notification_idle">閒置</string>
     <string name="notification_n_downloads">%1$d 個下載進行中</string>
     <string name="notification_some_failed">完成時發生錯誤</string>
+    <string name="backend_label_mirror">Mirror</string>
+    <string name="backend_error_model_not_covered">該來源不收錄此機型</string>
+    <string name="backend_error_source_unavailable">來源暫時無法使用</string>
+    <string name="backend_mirror_summary">備用來源，以中國版機型為主。</string>
+    <string name="mirror_error_not_configured">此版本未設定備用來源。</string>
+    <string name="mirror_error_no_authorized_email">此版本未啟用備用來源的下載。</string>
+    <string name="mirror_error_no_ota_version">此韌體沒有 OTA 版本號，無法要求下載。</string>
+    <string name="mirror_error_token_rejected">備用來源拒絕了下載要求。</string>
+    <string name="mirror_error_no_link">備用來源沒有回傳下載連結。</string>
+    <string name="copy_diagnostics">複製診斷資訊</string>
+    <string name="copy_url_working">正在取得連結…</string>
 </resources>

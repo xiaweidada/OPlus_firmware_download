@@ -60,17 +60,49 @@ data class MirrorVersion(
 )
 
 /**
- * Carried on a winning result so the download step can lazily resolve the token-gated proxy
- * URL. Public because it rides on the public `BackendOutcome.Success`.
+ * Why the mirror could not supply metadata.
+ *
+ * An enum rather than a message on purpose. The natural message here is an exception string like
+ * `UnknownHostException: Unable to resolve host "…"`, which would print the mirror's domain into
+ * the UI and from there into screenshots and shared bug reports. Callers render these through the
+ * string layer instead, so no code path can leak the host by accident.
  */
-data class MirrorProxyRef(val deviceName: String, val otaVersion: String)
+enum class MirrorUnavailableReason {
+    /** No base URL / key / user-agent in this build — an open-source clone, typically. */
+    NOT_CONFIGURED,
 
-/**
- * Outcome of lazily resolving the mirror's token-gated proxy download URL. [Failed.reason] is a
- * human-readable explanation so the UI can show why a download/copy could not proceed instead of
- * silently doing nothing.
- */
+    /** The mirror does not carry this model. Expected: its catalog is largely CN-market devices. */
+    MODEL_NOT_COVERED,
+
+    /** Reachable-but-broken, or not reachable at all. */
+    UNAVAILABLE,
+}
+
+/** Metadata lookup outcome. */
+sealed interface MirrorLookup {
+    data class Found(val version: MirrorVersion) : MirrorLookup
+    data class Unavailable(val reason: MirrorUnavailableReason) : MirrorLookup
+}
+
+/** Why a download link could not be minted. Enum for the same reason as [MirrorUnavailableReason]. */
+enum class MirrorDownloadFailure {
+    NOT_CONFIGURED,
+
+    /** This build carries no authorized email, so the source will not issue download tokens. */
+    NO_AUTHORIZED_EMAIL,
+
+    /** The firmware has no OTA build id, which the proxy addresses packages by. */
+    NO_OTA_VERSION,
+
+    /** The token request was refused — unauthorized email, or rate limited. */
+    TOKEN_REJECTED,
+
+    /** Token accepted but no usable link came back. */
+    NO_LINK,
+}
+
+/** Outcome of resolving a download link from the mirror. */
 sealed interface MirrorResolution {
     data class Resolved(val url: String) : MirrorResolution
-    data class Failed(val reason: String) : MirrorResolution
+    data class Failed(val reason: MirrorDownloadFailure) : MirrorResolution
 }

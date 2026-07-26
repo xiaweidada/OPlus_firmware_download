@@ -18,7 +18,10 @@ object VersionResolver {
         val partsA = a?.let(::parse)
         val partsB = b?.let(::parse)
         return when {
-            partsA == null && partsB == null -> compareValues(a, b)
+            // Neither is a version we understand, so we genuinely cannot rank them. Reporting a
+            // tie lets the caller fall back to backend precedence; a lexicographic guess would
+            // silently promote whichever source happened to sort first.
+            partsA == null && partsB == null -> 0
             partsA == null -> -1
             partsB == null -> 1
             else -> compareLists(partsA, partsB)

@@ -50,6 +50,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.desmond.ofd.R
+import com.desmond.ofd.diag.render
 import com.desmond.ofd.device.DeviceProps
 import com.desmond.ofd.device.DeviceSnapshot
 import kotlinx.coroutines.launch
@@ -71,6 +72,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     val savePermissionFailedMessage = stringResource(R.string.save_location_permission_failed)
     val copiedMessagePattern = stringResource(R.string.copied_to_clipboard, "%s")
     val downloadLinkFailedPattern = stringResource(R.string.download_link_failed, "%s")
+    val copyUrlFailedMessage = stringResource(R.string.copy_url_failed)
 
     val vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory)
     val state by vm.state.collectAsStateWithLifecycle()
@@ -168,6 +170,11 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                                 )
                             }
                         },
+                        onCopyUrl = { s.winnerOutcome?.let { winner -> vm.resolveShareableUrl(winner) } },
+                        onCopyFailed = {
+                            scope.launch { snackbarHostState.showSnackbar(copyUrlFailedMessage) }
+                        },
+                        diagnosticsText = { vm.checkDiagnostics(s).render() },
                     )
                 }
                 is HomeUiState.Error -> {

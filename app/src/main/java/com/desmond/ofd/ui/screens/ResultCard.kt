@@ -19,17 +19,21 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +43,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
 import com.desmond.ofd.R
+import com.desmond.ofd.backend.BackendId
+import com.desmond.ofd.firmware.parseFirmwareUrlExpiresEpochSeconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -48,6 +55,11 @@ fun ResultCard(
     state: HomeUiState.Result,
     onDownloadClick: () -> Unit,
     onCopied: (label: String) -> Unit,
+    /** Mints a fresh shareable link, or null when one could not be produced. */
+    onCopyUrl: suspend () -> String?,
+    onCopyFailed: () -> Unit,
+    /** Rendered on demand, so the report is never built for checks that went fine. */
+    diagnosticsText: () -> String,
     modifier: Modifier = Modifier,
 ) {
     val winnerOutcome = state.winnerOutcome
@@ -64,7 +76,7 @@ fun ResultCard(
             Spacer(Modifier.height(6.dp))
 
             if (winnerOutcome == null) {
-                NoResultsBlock(state)
+                NoResultsBlock(state, diagnosticsText, onCopied)
             } else {
                 Text(
                     text = firmwareVersion(winnerOutcome.versionName),
@@ -88,14 +100,20 @@ fun ResultCard(
                 Spacer(Modifier.height(12.dp))
                 BackendsBreakdown(state)
 
-                winnerOutcome.expiresAtEpochSeconds?.let { expiresAt ->
-                    Spacer(Modifier.height(12.dp))
-                    ExpiryRow(expiresAt = expiresAt)
-                }
-
                 Spacer(Modifier.height(12.dp))
                 val clipboard = LocalClipboard.current
                 val scope = rememberCoroutineScope()
+                var copiedLinkExpiresAt by remember(winnerOutcome) { mutableStateOf<Long?>(null) }
+                var copying by remember(winnerOutcome) { mutableStateOf(false) }
+
+                // The countdown belongs to the *copied* link and starts when that link is minted.
+                // Showing a check-time countdown would tick down against a URL nobody is using —
+                // the Download button mints its own and is unaffected by this expiring.
+                copiedLinkExpiresAt?.let { expiresAt ->
+                    ExpiryRow(expiresAt = expiresAt)
+                    Spacer(Modifier.height(12.dp))
+                }
+
                 Button(
                     onClick = onDownloadClick,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
@@ -104,26 +122,41 @@ fun ResultCard(
                     Spacer(Modifier.width(8.dp))
                     Text(stringResource(R.string.download_with_size, formatBytes(winnerOutcome.sizeBytes)))
                 }
-                // Copy is offered only for backends that expose a directly shareable URL. The mirror's
-                // link is a token-gated in-app proxy (blank here), so it stays download-only — copying
-                // it would hand out a non-working, backend-revealing URL.
-                if (winnerOutcome.downloadUrl.isNotBlank()) {
-                    Spacer(Modifier.height(4.dp))
-                    TextButton(
-                        onClick = {
-                            scope.launch {
-                                clipboard.setClipEntry(
-                                    ClipEntry(ClipData.newPlainText(downloadUrlLabel, winnerOutcome.downloadUrl)),
-                                )
-                                onCopied(downloadUrlLabel)
+                // Every backend can now produce a shareable link on demand, including the mirror:
+                // what gets copied is the CDN's own pre-signed URL, which says nothing about which
+                // backend found it.
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    enabled = !copying,
+                    onClick = {
+                        scope.launch {
+                            copying = true
+                            val url = try { onCopyUrl() } finally { copying = false }
+                            if (url.isNullOrBlank()) {
+                                onCopyFailed()
+                                return@launch
                             }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
+                            clipboard.setClipEntry(
+                                ClipEntry(ClipData.newPlainText(downloadUrlLabel, url)),
+                            )
+                            copiedLinkExpiresAt = parseFirmwareUrlExpiresEpochSeconds(url)
+                            onCopied(downloadUrlLabel)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    // Minting a link is a network round trip — for the mirror, two. A disabled
+                    // button alone reads as "broken", so show that work is happening.
+                    if (copying) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
                         Icon(Icons.Outlined.ContentCopy, contentDescription = null)
-                        Spacer(Modifier.width(8.dp))
-                        Text(stringResource(R.string.copy_url))
                     }
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(if (copying) R.string.copy_url_working else R.string.copy_url))
                 }
             }
         }
@@ -248,17 +281,26 @@ private fun ExpiryRow(expiresAt: Long, modifier: Modifier = Modifier) {
 
 @Composable
 private fun BackendsBreakdown(state: HomeUiState.Result) {
-    BackendRow(
-        label = stringResource(R.string.backend_label_danielspringer),
-        outcome = state.danielspringer,
-        isWinner = state.winnerLabel == BackendLabels.DANIELSPRINGER,
-    )
-    Spacer(Modifier.height(6.dp))
-    BackendRow(
-        label = stringResource(R.string.backend_label_realme_ota),
-        outcome = state.realmeOta,
-        isWinner = state.winnerLabel == BackendLabels.REALME_OTA,
-    )
+    // An unconfigured mirror is absent, not failing. A row that could only ever fail reads as a
+    // bug in a build that never had the source to begin with.
+    val rows = state.outcomes().filterNot { (id, outcome) ->
+        id == BackendId.MIRROR && outcome == BackendOutcome.NotAttempted
+    }
+    rows.forEachIndexed { index, (id, outcome) ->
+        if (index > 0) Spacer(Modifier.height(6.dp))
+        BackendRow(
+            label = stringResource(backendLabelRes(id)),
+            outcome = outcome,
+            isWinner = state.winner == id,
+        )
+    }
+}
+
+@StringRes
+private fun backendLabelRes(id: BackendId): Int = when (id) {
+    BackendId.REALME_OTA -> R.string.backend_label_realme_ota
+    BackendId.DANIELSPRINGER -> R.string.backend_label_danielspringer
+    BackendId.MIRROR -> R.string.backend_label_mirror
 }
 
 @Composable
@@ -316,7 +358,11 @@ private fun backendMessageText(message: BackendMessage): String = when (message)
 }
 
 @Composable
-private fun NoResultsBlock(state: HomeUiState.Result) {
+private fun NoResultsBlock(
+    state: HomeUiState.Result,
+    diagnosticsText: () -> String,
+    onCopied: (String) -> Unit,
+) {
     Text(
         text = stringResource(R.string.no_firmware_found),
         style = MaterialTheme.typography.titleMedium,
@@ -324,13 +370,36 @@ private fun NoResultsBlock(state: HomeUiState.Result) {
     )
     Spacer(Modifier.height(8.dp))
     BackendsBreakdown(state)
+
+    // Offered only when nothing was found, which is the case where the user has no other way to
+    // tell us what happened. On a successful check this would be permanent clutter beside the
+    // primary action — and with the mirror as its own row, a failing backend is routine for any
+    // model it does not carry.
+    Spacer(Modifier.height(12.dp))
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val label = stringResource(R.string.copy_diagnostics)
+    OutlinedButton(
+        onClick = {
+            scope.launch {
+                clipboard.setClipEntry(ClipEntry(ClipData.newPlainText(label, diagnosticsText())))
+                onCopied(label)
+            }
+        },
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+    ) {
+        Icon(Icons.Outlined.ContentCopy, contentDescription = null)
+        Spacer(Modifier.width(8.dp))
+        Text(label)
+    }
 }
 
 private fun firmwareVersion(versionName: String): String =
     versionName.substringAfter('_', missingDelimiterValue = versionName)
 
 private fun extractBuildDate(outcome: BackendOutcome.Success): String? {
-    Regex("""/component-ota/(\d{2})/(\d{2})/(\d{2})/""").find(outcome.downloadUrl)?.let {
+    // The dated path segment only exists in the *resolved* CDN link, never in a gate URL.
+    Regex("""/component-ota/(\d{2})/(\d{2})/(\d{2})/""").find(outcome.displayUrl.orEmpty())?.let {
         val (y, m, d) = it.destructured
         return "20$y-$m-$d"
     }

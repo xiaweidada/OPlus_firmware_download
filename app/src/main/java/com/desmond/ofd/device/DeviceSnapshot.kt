@@ -1,6 +1,7 @@
 package com.desmond.ofd.device
 
 import com.desmond.ofd.backend.realmeota.data.Region
+import com.desmond.ofd.diag.DeviceDiagnostics
 
 /**
  * A frozen read of a device's OTA-relevant system properties. Constructed by [DeviceProps.snapshot]
@@ -107,3 +108,20 @@ data class DeviceSnapshot(
         private val DISPLAY_REGION = Regex("""\(([A-Z]{2})\d+\)\s*$""")
     }
 }
+
+/**
+ * Flatten a snapshot into the plain-value form the diagnostics report uses. Kept here so the
+ * report module never has to know about device properties or read them itself.
+ */
+fun DeviceSnapshot.toDiagnostics(): DeviceDiagnostics = DeviceDiagnostics(
+    model = productName,
+    marketName = marketName,
+    firmwareVersion = displayId,
+    otaBuild = otaVersion,
+    colorOsVersion = oplusRom,
+    ruiVersion = ruiVersion,
+    androidRelease = androidRelease,
+    sdkInt = sdkInt,
+    region = region.label,
+    nvId = nvId,
+)

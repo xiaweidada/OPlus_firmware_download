@@ -22,13 +22,14 @@
     <string name="download_with_size">下载（%1$s）</string>
     <string name="download_url">下载链接</string>
     <string name="copy_url">复制链接</string>
+    <string name="copy_url_failed">无法生成可分享的链接，请重新检查。</string>
     <string name="size">大小</string>
     <string name="build_date">构建日期</string>
     <string name="md5">MD5</string>
     <string name="copy_md5">复制 MD5</string>
-    <string name="url_expired_recheck">链接已过期，请重新检查</string>
-    <string name="url_valid_minutes_seconds">链接有效期 %1$d 分 %2$02d 秒</string>
-    <string name="url_valid_seconds">链接有效期 %1$d 秒</string>
+    <string name="url_expired_recheck">复制的链接已过期，请重新复制</string>
+    <string name="url_valid_minutes_seconds">复制的链接有效期 %1$d 分 %2$02d 秒</string>
+    <string name="url_valid_seconds">复制的链接有效期 %1$d 秒</string>
     <string name="backend_newest">%1$s，最新</string>
     <string name="backend_older">%1$s，较旧</string>
     <string name="backend_label_danielspringer">danielspringer.at</string>
@@ -93,4 +94,15 @@
     <string name="notification_idle">空闲</string>
     <string name="notification_n_downloads">%1$d 个下载进行中</string>
     <string name="notification_some_failed">完成时出现错误</string>
+    <string name="backend_label_mirror">Mirror</string>
+    <string name="backend_error_model_not_covered">该来源不收录此机型</string>
+    <string name="backend_error_source_unavailable">来源暂时不可用</string>
+    <string name="backend_mirror_summary">备用来源，以国行机型为主。</string>
+    <string name="mirror_error_not_configured">此版本未配置备用来源。</string>
+    <string name="mirror_error_no_authorized_email">此版本未启用备用来源的下载。</string>
+    <string name="mirror_error_no_ota_version">此固件没有 OTA 版本号，无法请求下载。</string>
+    <string name="mirror_error_token_rejected">备用来源拒绝了下载请求。</string>
+    <string name="mirror_error_no_link">备用来源没有返回下载链接。</string>
+    <string name="copy_diagnostics">复制诊断信息</string>
+    <string name="copy_url_working">正在获取链接…</string>
 </resources>

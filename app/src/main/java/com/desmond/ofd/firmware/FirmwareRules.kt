@@ -27,6 +27,24 @@ internal fun formatFirmwareBytes(bytes: Long): String = when {
     else -> "$bytes B"
 }
 
+// Smallest value accepted as an absolute expiry (2001-09-09). Some signing schemes put a
+// *relative* lifetime (e.g. `3600`) in the same parameter name; rendering that as an absolute
+// timestamp would show a 1970 date and make every link look permanently expired.
+private const val MIN_PLAUSIBLE_EPOCH_SECONDS = 1_000_000_000L
+
+// Pre-signed firmware URLs name their expiry differently per CDN: OPPO's CN edge
+// (`*.allawnfs.com`) signs AWS-style with `Expires`, the EU/GL/IN edges (`*.allawnofs.com`)
+// sign Alibaba-OSS-style with `x-oss-expires`, and the NA edge (`redirector.gvt1.com`)
+// carries no expiry at all. Matched case-insensitively because `HttpUrl.queryParameter` is
+// case-sensitive and the CDNs are not consistent about casing.
+private val EXPIRY_PARAM_NAMES = setOf("expires", "x-oss-expires")
+
+/** Epoch seconds at which a pre-signed URL stops working, or null when it carries no expiry. */
 internal fun parseFirmwareUrlExpiresEpochSeconds(url: String): Long? = runCatching {
-    url.toHttpUrlOrNull()?.queryParameter("Expires")?.toLongOrNull()
+    val parsed = url.toHttpUrlOrNull() ?: return@runCatching null
+    parsed.queryParameterNames
+        .firstOrNull { it.lowercase(Locale.US) in EXPIRY_PARAM_NAMES }
+        ?.let(parsed::queryParameter)
+        ?.toLongOrNull()
+        ?.takeIf { it >= MIN_PLAUSIBLE_EPOCH_SECONDS }
 }.getOrNull()
