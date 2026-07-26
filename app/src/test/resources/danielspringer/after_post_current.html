@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<!-- saved from url=(0059)https://roms.danielspringer.at/index.php?view=ota#resultBox -->
+<html lang="en" data-theme="default" style="transition-property: none; margin-right: 0px;"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTA resolver and image extraction · Daniel Springer ROM Archive</title>
+    <meta name="description" content="Resolve current OTA download links and extract individual partition images for supported OnePlus, OPPO and Realme devices.">
+        <link rel="canonical" href="https://roms.danielspringer.at/index.php?view=ota">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="OTA resolver and image extraction · Daniel Springer ROM Archive">
+    <meta property="og:description" content="Resolve current OTA download links and extract individual partition images for supported OnePlus, OPPO and Realme devices.">
+    <meta property="og:url" content="https://roms.danielspringer.at/index.php?view=ota">
+    <meta name="twitter:card" content="summary">
+    <link rel="icon" href="https://roms.danielspringer.at/img/favicon.svg?v=1784733544" type="image/svg+xml">
+    <link rel="alternate icon" href="https://roms.danielspringer.at/favicon.ico" type="image/x-icon">
+    <script>
+        (function () {
+            if (document.cookie.indexOf("op13_ads_script_blocked_v2=1") !== -1) {
+                document.documentElement.classList.add("op13-ads-unavailable");
+            }
+        }());
+
+
+        (function () {
+            var allowed = ["default", "light", "dark", "amoled", "graphite", "ocean", "forest", "sunset", "rose"];
+            var stored = "default";
+            if (!stored) {
+                try { stored = localStorage.getItem("op13_theme"); } catch (e) {}
+            }
+            if (!stored) { stored = "default"; }
+            if (allowed.indexOf(stored) === -1) { stored = "default"; }
+            try { localStorage.setItem("op13_theme", stored); } catch (e) {}
+            document.cookie = "op13_theme=" + encodeURIComponent(stored) + "; Max-Age=31536000; Path=/; SameSite=Lax";
+            document.documentElement.dataset.theme = stored;
+        }());
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com/">
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="">
+    <link href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/css2" rel="stylesheet">
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/base.css">
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/layout.css">
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/components.css">
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/refresh.css">
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/ads.css">
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/op15_notice.css">
+
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/ota.css">
+
+    <link rel="stylesheet" href="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/theme.css">
+    <script src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/theme.js" defer=""></script>
+
+
+
+    <script async="" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/f.txt" crossorigin="anonymous" onload="window.op13AdsenseScriptLoaded=true" onerror="window.op13AdsenseScriptBlocked=true"></script>
+    <script src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/ads.js" defer=""></script>
+    <meta name="google-adsense-account" content="ca-pub-8628531066320026">
+<style id="ReanimatedPredefinedWebAnimationsStyle"></style><style id="ReanimatedCustomWebAnimationsStyle"></style><style id="ReanimatedCSSStyleTag"></style></head>
+<body data-new-gr-c-s-check-loaded="14.1313.0" data-gr-ext-installed="" data-gr-ext-go-mode="" data-gr-aaa-loaded="14.1313.0" data-gr-aaa-notch-connection-id="1785067617305-0.3380740295752779">
+        <aside class="op13-ad op13-ad-side op13-ad-side-left op13-ad-desktop" data-op13-ad="" data-op13-ad-name="side-left" aria-label="Advertisement">
+        <!-- left -->
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8628531066320026" data-ad-slot="1676487865" data-ad-format="auto" data-full-width-responsive="true" data-adsbygoogle-status="done" data-ad-status="filled"><iframe id="aswift_1" name="aswift_1" data-load-complete="true" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/saved_resource.html"></iframe></ins>
+    </aside>
+            <aside class="op13-ad op13-ad-side op13-ad-side-right op13-ad-desktop" data-op13-ad="" data-op13-ad-name="side-right" aria-label="Advertisement">
+        <!-- right -->
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8628531066320026" data-ad-slot="7233964088" data-ad-format="auto" data-full-width-responsive="true" data-adsbygoogle-status="done" data-ad-status="filled"><iframe id="aswift_2" name="aswift_2" data-load-complete="true" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/saved_resource(1).html"></iframe></ins>
+    </aside>
+        <div class="site-shell">
+        <header class="portal-header">
+            <div class="portal-signal" aria-label="Portal status">
+                <span>Firmware archive</span>
+                <span>ROM archive</span>
+                <span>OTA resolver</span>
+            </div>
+            <div class="portal-brand">
+                <div class="portal-mark" aria-hidden="true"><span></span></div>
+                <div class="portal-title">
+                    <p>Firmware portal</p>
+                    <h1>ROMs, flashers and recovery files</h1>
+                </div>
+                <div class="portal-tools">
+                    <div class="portal-meta" aria-label="Portal capabilities">
+                        <strong>Fast mirror</strong>
+                        <span>ZIP browse / MD5 / OTA</span>
+                    </div>
+                    <div class="theme-switcher" data-theme-switcher="">
+                        <button type="button" class="theme-toggle" data-theme-toggle="" aria-label="Choose color theme" aria-expanded="false" title="Choose color theme">
+                            <span class="theme-palette-icon" aria-hidden="true"><span></span></span>
+                            <span class="theme-toggle-copy">
+                                <span class="theme-toggle-kicker">Theme</span>
+                                <span class="theme-current-label" data-theme-current-label="">Default</span>
+                            </span>
+                        </button>
+                        <div class="theme-menu" data-theme-menu="" aria-label="Theme selector">
+                            <button type="button" data-theme-choice="default" data-theme-label="Default" aria-label="Use default theme" class="is-active" aria-pressed="true">
+                                <span class="theme-dot theme-dot-default" aria-hidden="true"></span>
+                                <span><strong>Default</strong></span>
+                            </button>
+                            <button type="button" data-theme-choice="light" data-theme-label="Light" aria-label="Use light theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-light" aria-hidden="true"></span>
+                                <span><strong>Light</strong><small>Bright and clean</small></span>
+                            </button>
+                            <button type="button" data-theme-choice="dark" data-theme-label="Dark" aria-label="Use dark theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-dark" aria-hidden="true"></span>
+                                <span><strong>Dark</strong><small>Deep violet contrast</small></span>
+                            </button>
+                            <button type="button" data-theme-choice="amoled" data-theme-label="AMOLED" aria-label="Use AMOLED theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-amoled" aria-hidden="true"></span>
+                                <span><strong>AMOLED</strong><small>True black, neon mint</small></span>
+                            </button>
+                            <button type="button" data-theme-choice="graphite" data-theme-label="Graphite" aria-label="Use graphite theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-graphite" aria-hidden="true"></span>
+                                <span><strong>Graphite</strong><small>Neutral pro dark</small></span>
+                            </button>
+                            <button type="button" data-theme-choice="ocean" data-theme-label="Ocean" aria-label="Use ocean theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-ocean" aria-hidden="true"></span>
+                                <span><strong>Ocean</strong><small>Blue cyan glow</small></span>
+                            </button>
+                            <button type="button" data-theme-choice="forest" data-theme-label="Forest" aria-label="Use forest theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-forest" aria-hidden="true"></span>
+                                <span><strong>Forest</strong><small>Green accent</small></span>
+                            </button>
+                            <button type="button" data-theme-choice="sunset" data-theme-label="Sunset" aria-label="Use sunset theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-sunset" aria-hidden="true"></span>
+                                <span><strong>Sunset</strong><small>Warm coral amber</small></span>
+                            </button>
+                            <button type="button" data-theme-choice="rose" data-theme-label="Rose" aria-label="Use rose theme" aria-pressed="false">
+                                <span class="theme-dot theme-dot-rose" aria-hidden="true"></span>
+                                <span><strong>Rose</strong><small>Soft berry glow</small></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <nav class="portal-nav" aria-label="Main navigation">
+                <a class="" href="https://roms.danielspringer.at/index.php">Home</a>
+                <a class="is-active" href="https://roms.danielspringer.at/index.php?view=ota">OTAs</a>
+                <a class="" href="https://roms.danielspringer.at/index.php?view=donation">Donate</a>
+            </nav>
+        </header>
+        <main class="container portal-panel">
+                <aside class="op13-ad op13-ad-top op13-ad-desktop" data-op13-ad="" data-op13-ad-name="top-content" aria-label="Advertisement">
+        <!-- Top-Content -->
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8628531066320026" data-ad-slot="8509866824" data-ad-format="horizontal" data-full-width-responsive="true" data-adsbygoogle-status="done" data-ad-status="filled"><iframe id="aswift_3" name="aswift_3" data-load-complete="true" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/saved_resource(2).html"></iframe></ins>
+    </aside>
+    
+<section class="support-nudge" aria-labelledby="support-nudge-ota-title">
+  <div class="support-nudge-copy">
+    <span class="support-nudge-kicker">Community-funded server</span>
+    <h2 id="support-nudge-ota-title">Downloads stay free. Hosting does not.</h2>
+    <p>Large OTA files create real bandwidth and storage costs. Donations help keep this archive fast and available.</p>
+  </div>
+  <a class="support-nudge-cta" href="https://roms.danielspringer.at/index.php?view=donation">Support hosting</a>
+</section>
+
+<div class="ota-container" id="ota-downloader">
+
+  <form method="post" action="https://roms.danielspringer.at/index.php?view=ota#ota-downloader" id="otaForm" class="ota-row">
+    <div class="ota-device-field">
+      <label for="otaDeviceTrigger">Device</label><br>
+      <select id="device" name="device" class="ota-select ota-device-native is-enhanced" aria-label="Device" data-devices="{&quot;OP 10 PRO&quot;:{&quot;GLO&quot;:[&quot;NE2213_16.0.3.530(EX01)&quot;,&quot;NE2213_16.0.3.520(EX01)&quot;,&quot;NE2213_15.0.0.1302(EX01)&quot;,&quot;NE2213_15.0.0.700(EX01)&quot;,&quot;NE2213_14.0.0.940(EX01)&quot;,&quot;NE2213_14.0.0.202(EX01)&quot;,&quot;NE2213_13.1.0.597(EX01)&quot;,&quot;NE2213_11_C.26&quot;,&quot;NE2213_11_A.17&quot;],&quot;EU&quot;:[&quot;NE2213_16.0.3.530(EX01)&quot;,&quot;NE2213_16.0.3.520(EX01)&quot;,&quot;NE2213_15.0.0.1302(EX01)&quot;,&quot;NE2213_15.0.0.700(EX01)&quot;,&quot;NE2213_14.0.0.940(EX01)&quot;,&quot;NE2213_14.0.0.202(EX01)&quot;,&quot;NE2213_13.1.0.597(EX01)&quot;,&quot;NE2213_11_C.26&quot;,&quot;NE2213_11_A.17&quot;],&quot;IN&quot;:[&quot;NE2211_16.0.3.530(EX01)&quot;,&quot;NE2211_16.0.3.520(EX01)&quot;,&quot;NE2211_16.0.3.500(EX01)&quot;,&quot;NE2211_15.0.0.1302(EX01)&quot;,&quot;NE2211_15.0.0.700(EX01)&quot;,&quot;NE2211_14.0.0.940(EX01)&quot;,&quot;NE2211_14.0.0.300(EX01)&quot;,&quot;NE2211_13.1.0.597(EX01)&quot;,&quot;NE2211_11_C.30&quot;,&quot;NE2213_11_A.18&quot;],&quot;CN&quot;:[&quot;NE2210_16.0.3.530(CN01)&quot;,&quot;NE2210_16.0.3.520(CN01)&quot;,&quot;NE2210_15.0.0.1301(CN01)&quot;,&quot;NE2210_15.0.0.1202(CN01)&quot;,&quot;NE2210_15.0.0.700(CN01)&quot;,&quot;NE2210_14.0.0.940(CN01)&quot;,&quot;NE2210_14.0.0.300(CN01)&quot;,&quot;NE2210_13.1.0.196(CN01)&quot;,&quot;NE2210_11_C.26&quot;,&quot;NE2210_11_A.19&quot;]},&quot;OP 11&quot;:{&quot;GLO&quot;:[&quot;CPH2449_16.0.5.702(EX01)&quot;,&quot;CPH2449_16.0.3.500(EX01)&quot;,&quot;CPH2449_16.0.2.400(EX01)&quot;,&quot;CPH2449_15.0.0.862(EX01)&quot;,&quot;CPH2449_15.0.0.600(EX01)&quot;,&quot;CPH2449_14.0.0.833(EX01)&quot;,&quot;CPH2449_14.0.0.304(EX01)&quot;,&quot;CPH2449_13.1.0.596(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2449_16.0.5.702(EX01)&quot;,&quot;CPH2449_16.0.3.500(EX01)&quot;,&quot;CPH2449_16.0.2.400(EX01)&quot;,&quot;CPH2449_15.0.0.862(EX01)&quot;,&quot;CPH2449_15.0.0.600(EX01)&quot;,&quot;CPH2449_14.0.0.833(EX01)&quot;,&quot;CPH2449_14.0.0.304(EX01)&quot;,&quot;CPH2449_13.1.0.596(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2447_16.0.5.1002(EX01)&quot;,&quot;CPH2447_16.0.5.702(EX01)&quot;,&quot;CPH2447_16.0.5.701(EX01)&quot;,&quot;CPH2447_16.0.3.500(EX01)&quot;,&quot;CPH2447_16.0.1.300(EX01)&quot;,&quot;CPH2447_15.0.0.862(EX01)&quot;,&quot;CPH2447_15.0.0.600(EX01)&quot;,&quot;CPH2447_14.0.0.833(EX01)&quot;,&quot;CPH2447_14.0.0.304(EX01)&quot;,&quot;CPH2447_13.1.0.596(EX01)&quot;]},&quot;OP 11R&quot;:{&quot;IN&quot;:[&quot;CPH2487_16.0.5.1002(EX01)&quot;,&quot;CPH2487_16.0.5.700(EX01)&quot;,&quot;CPH2487_15.0.0.870(EX01)&quot;,&quot;CPH2487_15.0.0.601(EX01)&quot;,&quot;CPH2487_14.0.0.810(EX01)&quot;,&quot;CPH2487_14.0.0.300(EX01)&quot;,&quot;CPH2487_13.1.0.583(EX01)&quot;]},&quot;OP 12&quot;:{&quot;GLO&quot;:[&quot;CPH2581_16.0.8.300(EX01)&quot;,&quot;CPH2581_16.0.7.200(EX01)&quot;,&quot;CPH2581_16.0.5.702(EX01)&quot;,&quot;CPH2581_16.0.3.500(EX01)&quot;,&quot;CPH2581_16.0.0.201(EX01)&quot;,&quot;CPH2581_15.0.0.863(EX01)&quot;,&quot;CPH2581_15.0.0.204(EX01)&quot;,&quot;CPH2581_14.0.0.850(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2581_16.0.8.300(EX01)&quot;,&quot;CPH2581_16.0.7.200(EX01)&quot;,&quot;CPH2581_16.0.5.702(EX01)&quot;,&quot;CPH2581_16.0.3.500(EX01)&quot;,&quot;CPH2581_16.0.0.201(EX01)&quot;,&quot;CPH2581_15.0.0.863(EX01)&quot;,&quot;CPH2581_15.0.0.204(EX01)&quot;,&quot;CPH2581_14.0.0.850(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2573_16.0.9.400(EX01)&quot;,&quot;CPH2573_16.0.8.300(EX01)&quot;,&quot;CPH2573_16.0.7.200(EX01)&quot;,&quot;CPH2573_16.0.3.500(EX01)&quot;,&quot;CPH2573_16.0.2.400(EX01)&quot;,&quot;CPH2573_16.0.1.300(EX01)&quot;,&quot;CPH2573_16.0.0.201(EX01)&quot;,&quot;CPH2573_15.0.0.860(EX01)&quot;,&quot;CPH2573_15.0.0.501(EX01)&quot;,&quot;CPH2573_14.0.0.850(EX01)&quot;],&quot;CN&quot;:[&quot;PJD110_16.0.9.400(CN01)&quot;,&quot;PJD110_16.0.8.300(CN01)&quot;,&quot;PJD110_16.0.7.200(CN01)&quot;,&quot;PJD110_16.0.5.702(CN01)&quot;,&quot;PJD110_16.0.3.500(CN01)&quot;,&quot;PJD110_16.0.1.300(CN01)&quot;,&quot;PJD110_16.0.0.201(CN01)&quot;,&quot;PJD110_15.0.0.860(CN01)&quot;,&quot;PJD110_15.0.0.502(CN01)&quot;,&quot;PJD110_14.0.0.860(CN01)&quot;]},&quot;OP 12R&quot;:{&quot;GLO&quot;:[&quot;CPH2609_16.0.5.702(EX01)&quot;,&quot;CPH2609_15.0.0.870(EX01)&quot;,&quot;CPH2609_15.0.0.600(EX01)&quot;,&quot;CPH2609_14.0.0.832(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2609_16.0.5.702(EX01)&quot;,&quot;CPH2609_16.0.3.500(EX01)&quot;,&quot;CPH2609_15.0.0.870(EX01)&quot;,&quot;CPH2609_15.0.0.600(EX01)&quot;,&quot;CPH2609_14.0.0.832(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2585_16.0.5.1002(EX01)&quot;,&quot;CPH2585_16.0.5.1001(EX01)&quot;,&quot;CPH2585_16.0.5.702(EX01)&quot;,&quot;CPH2585_16.0.2.400(EX01)&quot;,&quot;CPH2585_16.0.1.300(EX01)&quot;,&quot;CPH2585_15.0.0.870(EX01)&quot;,&quot;CPH2585_15.0.0.600(EX01)&quot;,&quot;CPH2585_14.0.0.832(EX01)&quot;]},&quot;OP 13&quot;:{&quot;GLO&quot;:[&quot;CPH2653_16.0.9.402(EX01)&quot;,&quot;CPH2653_16.0.9.401(EX01)&quot;,&quot;CPH2653_16.0.8.301(EX01)&quot;,&quot;CPH2653_16.0.7.201(EX01)&quot;,&quot;CPH2653_16.0.5.703(EX01)&quot;,&quot;CPH2653_16.0.5.701(EX01)&quot;,&quot;CPH2653_16.0.3.501(EX01)&quot;,&quot;CPH2653_16.0.2.402(EX01)&quot;,&quot;CPH2653_16.0.1.304(EX01)&quot;,&quot;CPH2653_16.0.0.210(EX01)&quot;,&quot;CPH2653_15.0.0.864(EX01)&quot;,&quot;CPH2653_15.0.0.860(EX01)&quot;,&quot;CPH2653_15.0.0.850(EX01)&quot;,&quot;CPH2653_15.0.0.840(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2653_16.0.8.301(EX01)&quot;,&quot;CPH2653_16.0.7.201(EX01)&quot;,&quot;CPH2653_16.0.5.703(EX01)&quot;,&quot;CPH2653_16.0.5.701(EX01)&quot;,&quot;CPH2653_16.0.3.501(EX01)&quot;,&quot;CPH2653_16.0.2.402(EX01)&quot;,&quot;CPH2653_16.0.1.304(EX01)&quot;,&quot;CPH2653_15.0.0.864(EX01)&quot;,&quot;CPH2653_15.0.0.860(EX01)&quot;,&quot;CPH2653_15.0.0.850(EX01)&quot;,&quot;CPH2653_15.0.0.840(EX01)&quot;],&quot;NA&quot;:[&quot;CPH2655_15.0.0.832(EX01)&quot;,&quot;CPH2655_15.0.0.405(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2649_16.0.9.402(EX01)&quot;,&quot;CPH2649_16.0.9.401(EX01)&quot;,&quot;CPH2649_16.0.8.301(EX01)&quot;,&quot;CPH2649_16.0.7.201(EX01)&quot;,&quot;CPH2649_16.0.5.703(EX01)&quot;,&quot;CPH2649_16.0.5.701(EX01)&quot;,&quot;CPH2649_16.0.3.501(EX01)&quot;,&quot;CPH2649_16.0.2.402(EX01)&quot;,&quot;CPH2649_16.0.1.304(EX01)&quot;,&quot;CPH2649_16.0.0.210(EX01)&quot;,&quot;CPH2649_15.0.0.860(EX01)&quot;,&quot;CPH2649_15.0.0.850(EX01)&quot;,&quot;CPH2649_15.0.0.840(EX01)&quot;],&quot;CN&quot;:[&quot;PJZ110_16.0.9.402(CN01)&quot;,&quot;PJZ110_16.0.9.401(CN01)&quot;,&quot;PJZ110_16.0.8.301(CN01)&quot;,&quot;PJZ110_16.0.7.201(CN01)&quot;,&quot;PJZ110_16.0.5.703(CN01)&quot;,&quot;PJZ110_16.0.5.702(CN01)&quot;,&quot;PJZ110_16.0.5.701(CN01)&quot;,&quot;PJZ110_16.0.3.502(CN01)&quot;,&quot;PJZ110_16.0.3.501(CN01)&quot;,&quot;PJZ110_16.0.2.403(CN01)&quot;,&quot;PJZ110_16.0.1.303(CN01)&quot;,&quot;PJZ110_16.0.0.212(EX01)&quot;,&quot;PJZ110_15.0.0.861(CN01)&quot;,&quot;PJZ110_15.0.0.860(CN01)&quot;,&quot;PJZ110_15.0.0.851(CN01)&quot;,&quot;PJZ110_15.0.0.840(CN01)&quot;]},&quot;OP 13R&quot;:{&quot;GLO&quot;:[&quot;CPH2645_16.0.8.300(EX01)&quot;,&quot;CPH2645_16.0.5.701(EX01)&quot;,&quot;CPH2645_16.0.3.500(EX01)&quot;,&quot;CPH2645_16.0.0.205(EX01)&quot;,&quot;CPH2645_15.0.0.871(EX01)&quot;,&quot;CPH2645_15.0.0.860(EX01)&quot;,&quot;CPH2645_15.0.0.850(EX01)&quot;,&quot;CPH2645_15.0.0.840(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2645_16.0.8.300(EX01)&quot;,&quot;CPH2645_16.0.7.200(EX01)&quot;,&quot;CPH2645_16.0.5.701(EX01)&quot;,&quot;CPH2645_16.0.3.500(EX01)&quot;,&quot;CPH2645_16.0.0.205(EX01)&quot;,&quot;CPH2645_15.0.0.860(EX01)&quot;,&quot;CPH2645_15.0.0.871(EX01)&quot;,&quot;CPH2645_15.0.0.850(EX01)&quot;,&quot;CPH2645_15.0.0.840(EX01)&quot;,&quot;CPH2645_15.0.0.840(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2691_16.0.9.402(EX01)&quot;,&quot;CPH2691_16.0.8.300(EX01)&quot;,&quot;CPH2691_16.0.7.200(EX01)&quot;,&quot;CPH2691_16.0.5.701(EX01)&quot;,&quot;CPH2691_16.0.3.500(EX01)&quot;,&quot;CPH2691_16.0.2.400(EX01)&quot;,&quot;CPH2691_16.0.1.302(EX01)&quot;,&quot;CPH2691_16.0.0.205(EX01)&quot;,&quot;CPH2691_15.0.0.860(EX01)&quot;,&quot;CPH2691_15.0.0.850(EX01)&quot;,&quot;CPH2691_15.0.0.840(EX01)&quot;],&quot;NA&quot;:[]},&quot;OP 13S&quot;:{&quot;IN&quot;:[&quot;CPH2723_16.0.9.400(EX01)&quot;,&quot;CPH2723_16.0.8.301(EX01)&quot;,&quot;CPH2723_16.0.7.200(EX01)&quot;,&quot;CPH2723_16.0.5.700(EX01)&quot;,&quot;CPH2723_16.0.3.501(EX01)&quot;,&quot;CPH2723_16.0.2.400(EX01)&quot;,&quot;CPH2723_16.0.1.303(EX01)&quot;,&quot;CPH2723_16.0.0.211(EX01)&quot;,&quot;CPH2723_15.0.2.601(EX01)&quot;]},&quot;OP 13T&quot;:{&quot;CN&quot;:[&quot;PKX110_16.0.9.400(CN01)&quot;,&quot;PKX110_16.0.8.300(CN01)&quot;,&quot;PKX110_16.0.7.200(CN01)&quot;,&quot;PKX110_16.0.5.701(CN01)&quot;,&quot;PKX110_16.0.3.502(CN01)&quot;,&quot;PKX110_16.0.3.501(CN01)&quot;,&quot;PKX110_16.0.2.400(CN01)&quot;,&quot;PKX110_16.0.1.301(CN01)&quot;,&quot;PKX110_16.0.0.213(CN01)&quot;,&quot;PKX110_16.0.0.212(CN01)&quot;,&quot;PPKX110_15.0.2.603(CN01)&quot;,&quot;PKX110_15.0.2.601(CN01)&quot;,&quot;PKX110_15.0.2.500(CN01)&quot;,&quot;PKX110_15.0.2.401(CN01)&quot;]},&quot;OP 15&quot;:{&quot;GLO&quot;:[&quot;CPH2747_16.0.9.400(EX01)&quot;,&quot;CPH2747_16.0.8.300(EX01)&quot;,&quot;CPH2747_16.0.7.201(EX01)&quot;,&quot;CPH2747_16.0.5.703(EX01)&quot;,&quot;CPH2747_16.0.5.700(EX01)&quot;,&quot;CPH2747_16.0.3.503(EX01)&quot;,&quot;CPH2747_16.0.3.501(EX01)&quot;,&quot;CPH2747_16.0.2.401(EX01)&quot;,&quot;CPH2747_16.0.1.303(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2747_16.0.9.400(EX01)&quot;,&quot;CPH2747_16.0.8.300(EX01)&quot;,&quot;CPH2747_16.0.7.201(EX01)&quot;,&quot;CPH2747_16.0.5.703(EX01)&quot;,&quot;CPH2747_16.0.5.700(EX01)&quot;,&quot;CPH2747_16.0.3.503(EX01)&quot;,&quot;CPH2747_16.0.3.501(EX01)&quot;,&quot;CPH2747_16.0.2.401(EX01)&quot;,&quot;CPH2747_16.0.1.303(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2745_16.0.9.400(EX01)&quot;,&quot;CPH2745_16.0.8.300(EX01)&quot;,&quot;CPH2745_16.0.7.201(EX01)&quot;,&quot;CPH2745_16.0.5.703(EX01)&quot;,&quot;CPH2745_16.0.5.702(EX01)&quot;,&quot;CPH2745_16.0.5.700(EX01)&quot;,&quot;CPH2745_16.0.3.503(EX01)&quot;,&quot;CPH2745_16.0.3.501(EX01)&quot;,&quot;CPH2745_16.0.2.401(EX01)&quot;,&quot;CPH2745_16.0.1.305(EX01)&quot;,&quot;CPH2745_16.0.1.303(EX01)&quot;],&quot;NA&quot;:[&quot;CPH2749_16.0.3.503(EX01)&quot;],&quot;CN&quot;:[&quot;PLK110_16.0.9.400(CN01)&quot;,&quot;PLK110_16.0.8.302(CN01)&quot;,&quot;PLK110_16.0.8.301(CN01)&quot;,&quot;PLK110_16.0.7.207(CN01)&quot;,&quot;PLK110_16.0.7.206(CN01)&quot;,&quot;PLK110_16.0.5.702(CN01)&quot;,&quot;PLK110_16.0.5.701(CN01)&quot;,&quot;PLK110_16.0.3.503(CN01)&quot;,&quot;PLK110_16.0.3.502(CN01)&quot;,&quot;PLK110_16.0.2.402(CN01)&quot;,&quot;PLK110_16.0.2.401(CN01)&quot;,&quot;PLK110_16.0.1.301(CN01)&quot;,&quot;PLK110_16.0.0.211(CN01)&quot;,&quot;PLK110_16.0.0.210(CN01)&quot;,&quot;PLK110_16.0.0.208(CN01)&quot;]},&quot;OP 15R&quot;:{&quot;GLO&quot;:[&quot;CPH2769_16.0.9.401(EX01)&quot;,&quot;CPH2769_16.0.8.300(EX01)&quot;,&quot;CPH2769_16.0.7.200(EX01)&quot;,&quot;CPH2769_16.0.5.701(EX01)&quot;,&quot;CPH2769_16.0.3.503(EX01)&quot;,&quot;CPH2769_16.0.3.501(EX01)&quot;,&quot;CPH2769_16.0.2.401(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2769_16.0.9.401(EX01)&quot;,&quot;CPH2769_16.0.8.300(EX01)&quot;,&quot;CPH2769_16.0.7.200(EX01)&quot;,&quot;CPH2769_16.0.5.703(EX01)&quot;,&quot;CPH2769_16.0.3.501(EX01)&quot;,&quot;CPH2769_16.0.2.401(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2767_16.0.9.401(EX01)&quot;,&quot;CPH2767_16.0.8.300(EX01)&quot;,&quot;CPH2767_16.0.7.200(EX01)&quot;,&quot;CPH2767_16.0.5.701(EX01)&quot;,&quot;CPH2767_16.0.3.503(EX01)&quot;,&quot;CPH2767_16.0.3.501(EX01)&quot;,&quot;CPH2767_16.0.2.401(EX01)&quot;,&quot;CPH2767_16.0.1.305(EX01)&quot;]},&quot;OP 15T&quot;:{&quot;CN&quot;:[&quot;PLZ110_16.0.9.400(CN01)&quot;,&quot;PLZ110_16.0.8.300(CN01)&quot;,&quot;PLZ110_16.0.7.201(CN01)&quot;,&quot;PLZ110_16.0.7.200(CN01)&quot;,&quot;PLZ110_16.0.5.703(CN01)&quot;,&quot;PLZ110_16.0.5.701(CN01)&quot;]},&quot;OP ACE 3&quot;:{&quot;CN&quot;:[&quot;PJE110_16.0.5.1002(CN01)&quot;,&quot;PJE110_16.0.5.701(CN01)&quot;,&quot;PJE110_16.0.1.300(CN01)&quot;,&quot;PJE110_15.0.0.870(CN01)&quot;,&quot;PJE110_15.0.0.600(CN01)&quot;,&quot;PJE110_14.0.0.817(CN01)&quot;]},&quot;OP ACE 3 PRO&quot;:{&quot;CN&quot;:[&quot;PJX110_16.0.5.701(CN01)&quot;,&quot;PJX110_16.0.1.301(CN01)&quot;,&quot;PJX110_15.0.0.861(CN01)&quot;,&quot;PJX110_15.0.0.500(CN01)&quot;,&quot;PJX110_14.1.0.510(CN01)&quot;]},&quot;OP ACE 3V&quot;:{&quot;CN&quot;:[&quot;PJF110_16.0.5.701(CN01)&quot;,&quot;PJF110_16.0.1.301(CN01)&quot;,&quot;PJF110_15.0.0.500(CN01)&quot;,&quot;PJF110_14.0.1.720(CN01)&quot;]},&quot;OP ACE 5&quot;:{&quot;CN&quot;:[&quot;PKG110_16.0.9.400(CN01)&quot;,&quot;PKG110_16.0.8.300(CN01)&quot;,&quot;PKG110_16.0.7.200(CN01)&quot;,&quot;PKG110_16.0.5.702(CN01)&quot;,&quot;PKG110_16.0.5.701(CN01)&quot;,&quot;PKG110_16.0.3.500(CN01)&quot;,&quot;PKG110_16.0.2.400(CN01)&quot;,&quot;PKG110_16.0.1.302(CN01)&quot;,&quot;PKG110_16.0.0.205(CN01)&quot;,&quot;PKG110_15.0.0.860(CN01)&quot;,&quot;PKG110_15.0.0.850(CN01)&quot;,&quot;PKG110_15.0.0.840(CN01)&quot;]},&quot;OP ACE 5 PRO&quot;:{&quot;CN&quot;:[&quot;PKR110_16.0.9.400(CN01)&quot;,&quot;PKR110_16.0.8.300(CN01)&quot;,&quot;PKR110_16.0.7.200(CN01)&quot;,&quot;PKR110_16.0.5.701(CN01)&quot;,&quot;PKR110_16.0.5.700(CN01)&quot;,&quot;PKR110_16.0.3.500(CN01)&quot;,&quot;PKR110_16.0.2.400(CN01)&quot;,&quot;PKR110_16.0.1.300(CN01)&quot;,&quot;PKR110_16.0.0.204(CN01)&quot;,&quot;PKR110_15.0.0.871(CN01)&quot;,&quot;PKR110_15.0.0.870(CN01)&quot;,&quot;PKR110_15.0.0.861(CN01)&quot;]},&quot;OP ACE 5 ULTRA&quot;:{&quot;CN&quot;:[&quot;PLC110_16.0.9.400(CN01)&quot;,&quot;PLC110_16.0.8.300(CN01)&quot;,&quot;PLC110_16.0.7.200(CN01)&quot;,&quot;PLC110_16.0.3.501(CN01)&quot;,&quot;PLC110_16.0.2.400(CN01)&quot;,&quot;PLC110_16.0.1.300(CN01)&quot;,&quot;PLC110_16.0.0.205(CN01)&quot;,&quot;PLC110_15.0.2.610(CN01)&quot;]},&quot;OP ACE 5 RACING&quot;:{&quot;CN&quot;:[&quot;PLF110_16.0.9.402(CN01)&quot;,&quot;PLF110_16.0.8.302(CN01)&quot;,&quot;PLF110_16.0.8.301(CN01)&quot;,&quot;PLF110_16.0.7.200(CN01)&quot;,&quot;PLF110_16.0.2.401(CN01)&quot;,&quot;PLF110_16.0.1.300(CN01)&quot;,&quot;PLF110_16.0.0.203(CN01)&quot;,&quot;PLF110_15.0.2.600(CN01)&quot;]},&quot;OP ACE 6&quot;:{&quot;CN&quot;:[&quot;PLQ110_16.0.9.401(CN01)&quot;,&quot;PLQ110_16.0.8.300(CN01)&quot;,&quot;PLQ110_16.0.7.201(CN01)&quot;,&quot;PLQ110_16.0.7.200(CN01)&quot;,&quot;PLQ110_16.0.5.702(CN01)&quot;,&quot;PLQ110_16.0.5.700(CN01)&quot;,&quot;PLQ110_16.0.3.502(CN01)&quot;,&quot;PLQ110_16.0.2.403(CN01)&quot;,&quot;PLQ110_16.0.2.402(CN01)&quot;,&quot;PLQ110_16.0.1.302(CN01)&quot;,&quot;PLQ110_16.0.0.207(CN01)&quot;,&quot;PLQ110_16.0.0.205(CN01)&quot;]},&quot;OP ACE 6T&quot;:{&quot;CN&quot;:[&quot;PLR110_16.0.9.400(CN01)&quot;,&quot;PLR110_16.0.8.301(CN01)&quot;,&quot;PLR110_16.0.8.300(CN01)&quot;,&quot;PLR110_16.0.7.201(CN01)&quot;,&quot;PLR110_16.0.7.200(CN01)&quot;,&quot;PLR110_16.0.5.702(CN01)&quot;,&quot;PLR110_16.0.3.503(CN01)&quot;,&quot;PLR110_16.0.3.501(CN01)&quot;,&quot;PLR110_16.0.2.403(CN01)&quot;,&quot;PLR110_16.0.2.402(CN01)&quot;,&quot;PLR110_16.0.1.308(CN01)&quot;,&quot;PLR110_16.0.1.306(CN01)&quot;]},&quot;OP TURBO 6&quot;:{&quot;CN&quot;:[&quot;PLU110_16.0.9.401(CN01)&quot;,&quot;PLU110_16.0.8.300(CN01)&quot;,&quot;PLU110_16.0.7.201(CN01)&quot;,&quot;PLU110_16.0.7.200(CN01)&quot;,&quot;PLU110_16.0.2.407(CN01)&quot;]},&quot;OP TURBO 6V&quot;:{&quot;CN&quot;:[&quot;PLY110_16.0.9.401(CN01)&quot;,&quot;PLY110_16.0.8.300(CN01)&quot;,&quot;PLY110_16.0.7.200(CN01)&quot;,&quot;PLY110_16.0.2.412(CN01)&quot;]},&quot;OP NORD 4&quot;:{&quot;GLO&quot;:[&quot;CPH2663_16.0.5.1001(EX01)&quot;,&quot;CPH2663_16.0.5.702(EX01)&quot;,&quot;CPH2663_16.0.2.401(EX01)&quot;,&quot;CPH2663_16.0.1.301(EX01)&quot;,&quot;CPH2663_15.0.0.401(EX01)&quot;,&quot;CPH2663_14.1.0.605(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2663_16.0.5.1001(EX01)&quot;,&quot;CPH2663_16.0.5.702(EX01)&quot;,&quot;CPH2663_16.0.2.401(EX01)&quot;,&quot;CPH2663_16.0.1.301(EX01)&quot;,&quot;CPH2663_15.0.0.1301(EX01)&quot;,&quot;CPH2663_15.0.0.401(EX01)&quot;,&quot;CPH2663_14.1.0.605(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2661_16.0.5.1001(EX01)&quot;,&quot;CPH2661_16.0.5.702(EX01)&quot;,&quot;CPH2661_16.0.2.401(EX01)&quot;,&quot;CPH2661_16.0.1.301(EX01)&quot;,&quot;CPH2661_15.0.0.401(EX01)&quot;,&quot;CPH2661_14.1.0.603(EX01)&quot;]},&quot;OP NORD CE4&quot;:{&quot;IN&quot;:[&quot;CPH2613_16.0.5.1001(EX01)&quot;,&quot;CPH2613_16.0.5.700(EX01)&quot;,&quot;CPH2613_16.0.3.500(EX01)&quot;,&quot;CPH2613_15.0.0.1301(EX01)&quot;,&quot;CPH2613_15.0.0.600(EX01)&quot;,&quot;CPH2613_14.0.1.708(EX01)&quot;]},&quot;OP NORD 5&quot;:{&quot;GLO&quot;:[&quot;CPH2709_16.0.5.1002(EX01)&quot;,&quot;CPH2709_16.0.5.710(EX01)&quot;,&quot;CPH2709_15.0.2.604(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2709_16.0.5.1002(EX01)&quot;,&quot;CPH2709_16.0.5.710(EX01)&quot;,&quot;CPH2709_16.0.1.300(EX01)&quot;,&quot;CPH2709_15.0.2.604(EX01)&quot;]},&quot;OP NORD CE5&quot;:{&quot;GLO&quot;:[&quot;CPH2719_16.0.5.1002(EX01)&quot;,&quot;CPH2719_16.0.5.1001(EX01)&quot;,&quot;CPH2719_16.0.5.1000(EX01)&quot;,&quot;CPH2719_16.0.5.700(EX01)&quot;,&quot;CPH2719_15.0.2.602(EX01)&quot;],&quot;EU&quot;:[&quot;CPH2719_16.0.5.1002(EX01)&quot;,&quot;CPH2719_16.0.5.1001(EX01)&quot;,&quot;CPH2719_16.0.5.1000(EX01)&quot;,&quot;CPH2719_16.0.5.700(EX01)&quot;,&quot;CPH2719_16.0.1.300(EX01)&quot;,&quot;CPH2719_15.0.2.602(EX01)&quot;]},&quot;OP NORD 6&quot;:{&quot;GLO&quot;:[&quot;CPH2795_16.0.5.1000(EX01)&quot;,&quot;CPH2795_16.0.5.901(EX01)&quot;,&quot;CPH2795_16.0.5.702(EX01)&quot;,&quot;CPH2795_16.0.5.701(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2793_16.0.5.1000(EX01)&quot;,&quot;CPH2793_16.0.5.901(EX01)&quot;,&quot;CPH2793_16.0.5.702(EX01)&quot;,&quot;CPH2793_16.0.5.701(EX01)&quot;]},&quot;OP PAD&quot;:{&quot;CN&quot;:[&quot;OPD2407_16.0.5.1001(CN01)&quot;,&quot;OPD2407_16.0.5.700(CN01)&quot;,&quot;OPD2407_15.0.0.1601(CN01)&quot;,&quot;OPD2407_15.0.0.1351(CN01)&quot;]},&quot;OP PAD PRO&quot;:{&quot;CN&quot;:[&quot;OPD2404_16.0.5.702(CN01)&quot;]},&quot;OP PAD LITE&quot;:{&quot;GLO&quot;:[&quot;OPD2480_16.0.5.701(EX01)&quot;,&quot;OPD2480_16.0.5.700(EX01)&quot;,&quot;OPD2480_15.0.1.1101(EX01)&quot;,&quot;OPD2480_15.0.1.812(EX01)&quot;],&quot;EU&quot;:[&quot;OPD2480_16.0.5.701(EX01)&quot;,&quot;OPD2480_16.0.5.700(EX01)&quot;,&quot;OPD2480_15.0.1.1101(EX01)&quot;,&quot;OPD2480_15.0.1.812(EX01)&quot;]},&quot;OP PAD2&quot;:{&quot;EU&quot;:[&quot;OPD2403_16.0.5.702(EX01)&quot;,&quot;OPD2403_16.0.3.501(EX01)&quot;,&quot;OPD2403_16.0.0.202(EX01)&quot;],&quot;IN&quot;:[&quot;OPD2403_16.0.5.1002(EX01)&quot;,&quot;OPD2403_16.0.5.702(EX01)&quot;,&quot;OPD2403_16.0.3.501(EX01)&quot;,&quot;OPD2403_16.0.1.301(EX01)&quot;,&quot;OPD2403_16.0.0.202(EX01)&quot;]},&quot;OP PAD2 PRO&quot;:{&quot;CN&quot;:[&quot;OPD2413_16.0.9.400(CN01)&quot;,&quot;OPD2413_16.0.8.300(CN01)&quot;,&quot;OPD2413_16.0.7.200(CN01)&quot;,&quot;OPD2413_16.0.3.501(CN01)&quot;,&quot;OPD2413_16.0.2.400(CN01)&quot;,&quot;OPD2413_16.0.1.301(CN01)&quot;,&quot;OPD2413_15.0.1.801(CN01)&quot;]},&quot;OP PAD3&quot;:{&quot;GLO&quot;:[&quot;OPD2415_16.0.9.400(EX01)&quot;,&quot;OPD2415_16.0.7.200(EX01)&quot;,&quot;OPD2415_16.0.5.700(EX01)&quot;,&quot;OPD2415_16.0.1.302(EX01)&quot;,&quot;OPD2415_16.0.0.211(EX01)&quot;],&quot;EU&quot;:[&quot;OPD2415_16.0.9.400(EX01)&quot;,&quot;OPD2415_16.0.7.200(EX01)&quot;,&quot;OPD2415_16.0.5.700(EX01)&quot;,&quot;OPD2415_16.0.1.302(EX01)&quot;,&quot;OPD2415_16.0.0.211(EX01)&quot;],&quot;IN&quot;:[&quot;OPD2415_16.0.9.400(EX01)&quot;,&quot;OPD2415_16.0.7.200(EX01)&quot;,&quot;OPD2415_16.0.3.500(EX01)&quot;,&quot;OPD2415_16.0.1.302(EX01)&quot;,&quot;OPD2415_16.0.0.211(EX01)&quot;]},&quot;OP PAD4&quot;:{&quot;IN&quot;:[&quot;OPD2514_16.0.9.401(EX01)&quot;,&quot;OPD2514_16.0.8.301(EX01)&quot;,&quot;OPD2514_16.0.7.220(EX01)&quot;]},&quot;OP PAD GO 2&quot;:{&quot;GLO&quot;:[&quot;OPD2504_16.0.5.711(EX01)&quot;,&quot;OPD2504_16.0.5.701(EX01)&quot;,&quot;OPD2504_16.0.2.402(EX01)&quot;],&quot;EU&quot;:[&quot;OPD2504_16.0.5.1000(EX01)&quot;,&quot;OPD2504_16.0.5.711(EX01)&quot;,&quot;OPD2504_16.0.5.701(EX01)&quot;,&quot;OPD2504_16.0.2.402(EX01)&quot;]},&quot;OP OPEN&quot;:{&quot;EU&quot;:[&quot;CPH2551_16.0.5.701(EX01)&quot;,&quot;CPH2551_16.0.3.505(EX01)&quot;,&quot;CPH2551_16.0.1.300(EX01)&quot;,&quot;CPH2551_16.0.0.201(EX01)&quot;,&quot;CPH2551_15.0.0.863(EX01)&quot;,&quot;CPH2551_15.0.0.610(EX01)&quot;,&quot;CPH2551_14.0.0.850(EX01)&quot;,&quot;CPH2551_14.0.0.501(EX01)&quot;,&quot;CPH2551_13.2.0.301(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2551_16.0.5.1002(EX01)&quot;,&quot;CPH2551_16.0.5.701(EX01)&quot;,&quot;CPH2551_16.0.3.505(EX01)&quot;,&quot;CPH2551_16.0.2.400(EX01)&quot;,&quot;CPH2551_16.0.1.300(EX01)&quot;,&quot;CPH2551_16.0.0.201(EX01)&quot;]},&quot;OPPO FIND N5&quot;:{&quot;CN&quot;:[&quot;PKH120_16.0.9.400(CN01)&quot;,&quot;PKH110_16.0.9.400(CN01)&quot;,&quot;PKH120_16.0.8.300(CN01)&quot;,&quot;PKH110_16.0.8.300(CN01)&quot;,&quot;PKH120_16.0.7.200(CN01)&quot;,&quot;PKH110_16.0.7.200(CN01)&quot;,&quot;PKH110_16.0.3.500(CN01)&quot;,&quot;PKH110_16.0.2.401(CN01)&quot;,&quot;PKH110_16.0.1.302(CN01)&quot;,&quot;PKH110_16.0.0.208(CN01)&quot;,&quot;PKH110_15.0.1.860(CN01)&quot;,&quot;PKH120_16.0.2.401(CN01)&quot;,&quot;PKH120_16.0.1.302(CN01)&quot;,&quot;PKH120_16.0.0.208(CN01)&quot;,&quot;PKH120_15.0.1.860(CN01)&quot;]},&quot;OPPO FIND X8&quot;:{&quot;IN&quot;:[&quot;CPH2651_16.0.9.400(EX01)&quot;,&quot;CPH2651_16.0.8.300(EX01)&quot;,&quot;CPH2651_16.0.7.200(EX01)&quot;,&quot;CPH2651_16.0.2.403(EX01)&quot;,&quot;CPH2651_16.0.1.304(EX01)&quot;,&quot;CPH2651_16.0.0.211(EX01)&quot;,&quot;CPH2651_15.0.0.860(EX01)&quot;],&quot;CN&quot;:[&quot;PKB110_16.0.9.400(CN01)&quot;,&quot;PKB110_16.0.8.300(CN01)&quot;,&quot;PKB110_16.0.7.200(CN01)&quot;,&quot;PKB110_16.0.3.500(CN01)&quot;,&quot;PKB110_16.0.2.403(CN01)&quot;,&quot;PKB110_16.0.1.305(CN01)&quot;,&quot;PKB110_16.0.0.213(CN01)&quot;,&quot;PKB110_15.0.0.860(CN01)&quot;]},&quot;OPPO FIND X8 PRO&quot;:{&quot;EU&quot;:[&quot;CPH2659_16.0.9.401(EX01)&quot;,&quot;CPH2659_16.0.8.300(EX01)&quot;,&quot;CPH2659_16.0.7.200(EX01)&quot;,&quot;CPH2659_16.0.1.301(EX01)&quot;,&quot;CPH2659_16.0.0.204(EX01)&quot;,&quot;CPH2659_15.0.0.863(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2659_16.0.9.401(EX01)&quot;,&quot;CPH2659_16.0.8.300(EX01)&quot;,&quot;CPH2659_16.0.7.200(EX01)&quot;,&quot;CPH2659_16.0.3.500(EX01)&quot;,&quot;CPH2659_16.0.2.400(EX01)&quot;,&quot;CPH2659_16.0.1.301(EX01)&quot;,&quot;CPH2659_16.0.0.204(EX01)&quot;,&quot;CPH2659_15.0.0.860(EX01)&quot;],&quot;CN&quot;:[&quot;PKC110_16.0.9.402(CN01)&quot;,&quot;PKC110_16.0.8.300(CN01)&quot;,&quot;PKC110_16.0.7.200(CN01)&quot;,&quot;PKC110_16.0.3.501(CN01)&quot;,&quot;PKC110_16.0.2.400(CN01)&quot;,&quot;PKC110_16.0.1.301(CN01)&quot;,&quot;PKC110_16.0.0.205(CN01)&quot;,&quot;PKC110_15.0.0.860(CN01)&quot;]},&quot;OPPO FIND X8 ULTRA&quot;:{&quot;CN&quot;:[&quot;PKU110_16.0.9.400(CN01)&quot;,&quot;PKJ110_16.0.9.400(CN01)&quot;,&quot;PKU110_16.0.8.300(CN01)&quot;,&quot;PKJ110_16.0.8.300(CN01)&quot;,&quot;PKU110_16.0.7.200(CN01)&quot;,&quot;PKJ110_16.0.7.200(CN01)&quot;,&quot;PKJ110_16.0.3.500(CN01)&quot;,&quot;PKJ110_16.0.2.400(CN01)&quot;,&quot;PKJ110_16.0.1.301(CN01)&quot;,&quot;PKJ110_16.0.0.212(CN01)&quot;,&quot;PKJ110_15.0.1.622(CN01)&quot;,&quot;PKU110_16.0.3.500(CN01)&quot;,&quot;PKU110_16.0.2.400(CN01)&quot;,&quot;PKU110_16.0.1.301(CN01)&quot;,&quot;PKU110_16.0.0.212(CN01)&quot;,&quot;PKU110_15.0.1.622(CN01)&quot;]},&quot;OPPO FIND X9&quot;:{&quot;EU&quot;:[&quot;CPH2797_16.0.8.301(EX01)&quot;,&quot;CPH2797_16.0.7.205(EX01)&quot;,&quot;CPH2797_16.0.5.701(EX01)&quot;,&quot;CPH2797_16.0.3.504(EX01)&quot;,&quot;CPH2797_16.0.2.401(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2797_16.0.9.400(EX01)&quot;,&quot;CPH2797_16.0.8.301(EX01)&quot;,&quot;CPH2797_16.0.7.205(EX01)&quot;,&quot;CPH2797_16.0.3.504(EX01)&quot;,&quot;CPH2797_16.0.2.401(EX01)&quot;],&quot;CN&quot;:[&quot;PLJ110_16.0.9.401(CN01)&quot;,&quot;PLJ110_16.0.8.301(CN01)&quot;,&quot;PLJ110_16.0.8.300(CN01)&quot;,&quot;PLJ110_16.0.7.204(CN01)&quot;,&quot;PLJ110_16.0.5.701(CN01)&quot;,&quot;PLJ110_16.0.3.502(CN01)&quot;,&quot;PLJ110_16.0.2.405(CN01)&quot;]},&quot;OPPO FIND X9 PRO&quot;:{&quot;EU&quot;:[&quot;CPH2791_16.0.3.504(EX01)&quot;,&quot;CPH2791_16.0.2.401(EX01)&quot;,&quot;CPH2791_16.0.1.302(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2791_16.0.9.400(EX01)&quot;,&quot;CPH2791_16.0.8.302(EX01)&quot;,&quot;CPH2791_16.0.5.701(EX01)&quot;,&quot;CPH2791_16.0.3.504(EX01)&quot;,&quot;CPH2791_16.0.2.401(EX01)&quot;,&quot;CPH2791_16.0.1.302(EX01)&quot;],&quot;CN&quot;:[&quot;PLG110_16.0.9.400(CN01)&quot;,&quot;PLG110_16.0.8.301(CN01)&quot;,&quot;PLG110_16.0.7.204(CN01)&quot;,&quot;PLG110_16.0.5.701(CN01)&quot;,&quot;PLG110_16.0.3.502(CN01)&quot;,&quot;PLG110_16.0.2.405(CN01)&quot;,&quot;PLG110_16.0.2.401(CN01)&quot;,&quot;PLG110_16.0.1.305(CN01)&quot;]},&quot;OPPO FIND X9 ULTRA&quot;:{&quot;EU&quot;:[&quot;CPH2841_16.0.9.403(EX01)&quot;,&quot;CPH2841_16.0.8.304(EX01)&quot;],&quot;IN&quot;:[&quot;CPH2841_16.0.9.403(EX01)&quot;],&quot;CN&quot;:[&quot;PMA110_16.0.9.402(CN01)&quot;]},&quot;OPPO RENO 15 PRO&quot;:{&quot;CN&quot;:[&quot;PLV110_16.0.9.400(CN01)&quot;,&quot;PLV110_16.0.8.300(CN01)&quot;,&quot;PLV110_16.0.7.200(CN01)&quot;,&quot;PLV110_16.0.3.502(CN01)&quot;,&quot;PLV110_16.0.2.406(CN01)&quot;,&quot;PLV110_16.0.2.403(CN01)&quot;]},&quot;Realme GT5 PRO&quot;:{&quot;CN&quot;:[&quot;RMX3888_16.0.8.300(CN01)&quot;,&quot;RMX3888_16.0.7.201(CN01)&quot;,&quot;RMX3888_16.0.5.710(CN01)&quot;,&quot;RMX3888_16.0.2.400(CN01)&quot;]},&quot;Realme GT7 PRO&quot;:{&quot;EU&quot;:[&quot;RMX5011_16.0.7.200(EX01)&quot;,&quot;RMX5011_16.0.2.400(EX01)&quot;,&quot;RMX5011_16.0.0.223(EX01)&quot;,&quot;RMX5011_15.0.0.1170(EX01)&quot;,&quot;RMX5011_15.0.0.270(EX01)&quot;],&quot;IN&quot;:[&quot;RMX5011_16.0.7.200(EX01)&quot;,&quot;RMX5011_16.0.5.700(EX01)&quot;,&quot;RMX5011_16.0.2.400(EX01)&quot;,&quot;RMX5011_16.0.0.223(EX01)&quot;,&quot;RMX5011_16.0.0.212(EX01)&quot;,&quot;RMX5011_15.0.0.1150(EX01)&quot;,&quot;RMX5011_15.0.0.270(EX01)&quot;],&quot;CN&quot;:[&quot;RMX5010_16.0.9.400(CN01)&quot;,&quot;RMX5010_16.0.8.300(CN01)&quot;,&quot;RMX5010_16.0.7.201(CN01)&quot;,&quot;RMX5010_16.0.5.712(CN01)&quot;,&quot;RMX5010_16.0.2.400(CN01)&quot;,&quot;RMX5010_16.0.0.231(CN01)&quot;,&quot;RMX5010_15.0.0.660(CN01)&quot;]},&quot;Realme GT8 PRO&quot;:{&quot;EU&quot;:[&quot;RMX5210_16.0.7.205(EX01)&quot;,&quot;RMX5210_16.0.3.501(EX01)&quot;,&quot;RMX5210_16.0.2.402(EX01)&quot;,&quot;RMX5210_16.0.0.298(EX01)&quot;,&quot;RMX5210_16.0.0.296(EX01)&quot;],&quot;IN&quot;:[&quot;RMX5210_16.0.7.205(EX01)&quot;,&quot;RMX5210_16.0.3.501(EX01)&quot;,&quot;RMX5210_16.0.2.402(EX01)&quot;,&quot;RMX5210_16.0.0.298(EX01)&quot;,&quot;RMX5210_16.0.0.296(EX01)&quot;],&quot;CN&quot;:[&quot;RMX5200_16.0.7.205(CN01)&quot;,&quot;RMX5200_16.0.5.704(CN01)&quot;,&quot;RMX5200_16.0.2.401(CN01)&quot;,&quot;RMX5200_16.0.0.296(CN01)&quot;,&quot;RMX5200_16.0.0.295(CN01)&quot;]}}">
+                                    <option value="OP 10 PRO">
+            OP 10 PRO          </option>
+                  <option value="OP 11">
+            OP 11          </option>
+                  <option value="OP 11R">
+            OP 11R          </option>
+                  <option value="OP 12">
+            OP 12          </option>
+                  <option value="OP 12R">
+            OP 12R          </option>
+                  <option value="OP 13">
+            OP 13          </option>
+                  <option value="OP 13R">
+            OP 13R          </option>
+                  <option value="OP 13S">
+            OP 13S          </option>
+                  <option value="OP 13T">
+            OP 13T          </option>
+                  <option value="OP 15" selected="">
+            OP 15          </option>
+                  <option value="OP 15R">
+            OP 15R          </option>
+                  <option value="OP 15T">
+            OP 15T          </option>
+                  <option value="OP ACE 3">
+            OP ACE 3          </option>
+                  <option value="OP ACE 3 PRO">
+            OP ACE 3 PRO          </option>
+                  <option value="OP ACE 3V">
+            OP ACE 3V          </option>
+                  <option value="OP ACE 5">
+            OP ACE 5          </option>
+                  <option value="OP ACE 5 PRO">
+            OP ACE 5 PRO          </option>
+                  <option value="OP ACE 5 ULTRA">
+            OP ACE 5 ULTRA          </option>
+                  <option value="OP ACE 5 RACING">
+            OP ACE 5 RACING          </option>
+                  <option value="OP ACE 6">
+            OP ACE 6          </option>
+                  <option value="OP ACE 6T">
+            OP ACE 6T          </option>
+                  <option value="OP TURBO 6">
+            OP TURBO 6          </option>
+                  <option value="OP TURBO 6V">
+            OP TURBO 6V          </option>
+                  <option value="OP NORD 4">
+            OP NORD 4          </option>
+                  <option value="OP NORD CE4">
+            OP NORD CE4          </option>
+                  <option value="OP NORD 5">
+            OP NORD 5          </option>
+                  <option value="OP NORD CE5">
+            OP NORD CE5          </option>
+                  <option value="OP NORD 6">
+            OP NORD 6          </option>
+                  <option value="OP PAD">
+            OP PAD          </option>
+                  <option value="OP PAD PRO">
+            OP PAD PRO          </option>
+                  <option value="OP PAD LITE">
+            OP PAD LITE          </option>
+                  <option value="OP PAD2">
+            OP PAD2          </option>
+                  <option value="OP PAD2 PRO">
+            OP PAD2 PRO          </option>
+                  <option value="OP PAD3">
+            OP PAD3          </option>
+                  <option value="OP PAD4">
+            OP PAD4          </option>
+                  <option value="OP PAD GO 2">
+            OP PAD GO 2          </option>
+                  <option value="OP OPEN">
+            OP OPEN          </option>
+                  <option value="OPPO FIND N5">
+            OPPO FIND N5          </option>
+                  <option value="OPPO FIND X8">
+            OPPO FIND X8          </option>
+                  <option value="OPPO FIND X8 PRO">
+            OPPO FIND X8 PRO          </option>
+                  <option value="OPPO FIND X8 ULTRA">
+            OPPO FIND X8 ULTRA          </option>
+                  <option value="OPPO FIND X9">
+            OPPO FIND X9          </option>
+                  <option value="OPPO FIND X9 PRO">
+            OPPO FIND X9 PRO          </option>
+                  <option value="OPPO FIND X9 ULTRA">
+            OPPO FIND X9 ULTRA          </option>
+                  <option value="OPPO RENO 15 PRO">
+            OPPO RENO 15 PRO          </option>
+                  <option value="Realme GT5 PRO">
+            Realme GT5 PRO          </option>
+                  <option value="Realme GT7 PRO">
+            Realme GT7 PRO          </option>
+                  <option value="Realme GT8 PRO">
+            Realme GT8 PRO          </option>
+              </select>
+
+      <div class="ota-device-picker" id="otaDevicePicker">
+        <button type="button" class="ota-device-trigger" id="otaDeviceTrigger" aria-haspopup="dialog" aria-controls="otaDevicePopover" aria-expanded="false">
+          <span id="otaDeviceValue" data-device="OP 15">OnePlus 15</span>
+          <span class="ota-device-trigger-arrow" aria-hidden="true">⌄</span>
+        </button>
+        <div class="ota-device-popover" id="otaDevicePopover" role="dialog" aria-label="Choose a device" hidden="">
+          <div class="ota-device-search-wrap">
+            <input class="ota-device-search" id="otaDeviceSearch" type="search" role="combobox" placeholder="Search device…" autocomplete="off" aria-label="Search device" aria-autocomplete="list" aria-controls="otaDeviceResults" aria-expanded="true">
+          </div>
+          <div class="ota-device-results" id="otaDeviceResults" role="listbox" aria-label="Devices">
+                          <div class="ota-device-recent" data-ota-device-recent="">
+                <span class="ota-device-kicker">Last used</span>
+                <button type="button" id="ota-device-option-recent" role="option" aria-selected="true" tabindex="-1" class="ota-device-option is-selected" data-device="OP 15" data-search="OP 15 OnePlus 15">
+                  <span>OnePlus 15</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                </button>
+              </div>
+                                                    <details class="ota-device-brand" data-ota-device-brand="">
+                <summary>
+                  <span class="ota-device-group-title"><span class="ota-device-group-chevron" aria-hidden="true">›</span>OnePlus</span>
+                  <span class="ota-device-count">37</span>
+                </summary>
+                <div class="ota-device-brand-body">
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="OnePlus Main series">
+                      <span class="ota-device-section-label">Main series</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-1" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 10 PRO" data-search="OP 10 PRO OnePlus 10 Pro">
+                            <span>OnePlus 10 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-2" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 11" data-search="OP 11 OnePlus 11">
+                            <span>OnePlus 11</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-3" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 11R" data-search="OP 11R OnePlus 11R">
+                            <span>OnePlus 11R</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-4" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 12" data-search="OP 12 OnePlus 12">
+                            <span>OnePlus 12</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-5" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 12R" data-search="OP 12R OnePlus 12R">
+                            <span>OnePlus 12R</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-6" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 13" data-search="OP 13 OnePlus 13">
+                            <span>OnePlus 13</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-7" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 13R" data-search="OP 13R OnePlus 13R">
+                            <span>OnePlus 13R</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-8" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 13S" data-search="OP 13S OnePlus 13S">
+                            <span>OnePlus 13S</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-9" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 13T" data-search="OP 13T OnePlus 13T">
+                            <span>OnePlus 13T</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-10" role="option" aria-selected="true" tabindex="-1" class="ota-device-option is-selected" data-device="OP 15" data-search="OP 15 OnePlus 15">
+                            <span>OnePlus 15</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-11" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 15R" data-search="OP 15R OnePlus 15R">
+                            <span>OnePlus 15R</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-12" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP 15T" data-search="OP 15T OnePlus 15T">
+                            <span>OnePlus 15T</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="OnePlus Ace">
+                      <span class="ota-device-section-label">Ace</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-13" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 3" data-search="OP ACE 3 OnePlus Ace 3">
+                            <span>OnePlus Ace 3</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-14" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 3 PRO" data-search="OP ACE 3 PRO OnePlus Ace 3 Pro">
+                            <span>OnePlus Ace 3 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-15" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 3V" data-search="OP ACE 3V OnePlus Ace 3V">
+                            <span>OnePlus Ace 3V</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-16" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 5" data-search="OP ACE 5 OnePlus Ace 5">
+                            <span>OnePlus Ace 5</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-17" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 5 PRO" data-search="OP ACE 5 PRO OnePlus Ace 5 Pro">
+                            <span>OnePlus Ace 5 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-18" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 5 ULTRA" data-search="OP ACE 5 ULTRA OnePlus Ace 5 Ultra">
+                            <span>OnePlus Ace 5 Ultra</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-19" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 5 RACING" data-search="OP ACE 5 RACING OnePlus Ace 5 Racing">
+                            <span>OnePlus Ace 5 Racing</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-20" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 6" data-search="OP ACE 6 OnePlus Ace 6">
+                            <span>OnePlus Ace 6</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-21" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP ACE 6T" data-search="OP ACE 6T OnePlus Ace 6T">
+                            <span>OnePlus Ace 6T</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="OnePlus Nord">
+                      <span class="ota-device-section-label">Nord</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-22" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP NORD 4" data-search="OP NORD 4 OnePlus Nord 4">
+                            <span>OnePlus Nord 4</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-23" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP NORD CE4" data-search="OP NORD CE4 OnePlus Nord CE4">
+                            <span>OnePlus Nord CE4</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-24" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP NORD 5" data-search="OP NORD 5 OnePlus Nord 5">
+                            <span>OnePlus Nord 5</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-25" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP NORD CE5" data-search="OP NORD CE5 OnePlus Nord CE5">
+                            <span>OnePlus Nord CE5</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-26" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP NORD 6" data-search="OP NORD 6 OnePlus Nord 6">
+                            <span>OnePlus Nord 6</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="OnePlus Pad">
+                      <span class="ota-device-section-label">Pad</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-27" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD" data-search="OP PAD OnePlus Pad">
+                            <span>OnePlus Pad</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-28" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD PRO" data-search="OP PAD PRO OnePlus Pad Pro">
+                            <span>OnePlus Pad Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-29" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD LITE" data-search="OP PAD LITE OnePlus Pad Lite">
+                            <span>OnePlus Pad Lite</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-30" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD2" data-search="OP PAD2 OnePlus Pad2">
+                            <span>OnePlus Pad2</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-31" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD2 PRO" data-search="OP PAD2 PRO OnePlus Pad2 Pro">
+                            <span>OnePlus Pad2 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-32" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD3" data-search="OP PAD3 OnePlus Pad3">
+                            <span>OnePlus Pad3</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-33" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD4" data-search="OP PAD4 OnePlus Pad4">
+                            <span>OnePlus Pad4</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-34" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP PAD GO 2" data-search="OP PAD GO 2 OnePlus Pad Go 2">
+                            <span>OnePlus Pad Go 2</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="OnePlus Open &amp; Turbo">
+                      <span class="ota-device-section-label">Open &amp; Turbo</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-35" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP TURBO 6" data-search="OP TURBO 6 OnePlus Turbo 6">
+                            <span>OnePlus Turbo 6</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-36" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP TURBO 6V" data-search="OP TURBO 6V OnePlus Turbo 6V">
+                            <span>OnePlus Turbo 6V</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-37" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OP OPEN" data-search="OP OPEN OnePlus Open">
+                            <span>OnePlus Open</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                  </div>
+              </details>
+                                        <details class="ota-device-brand" data-ota-device-brand="">
+                <summary>
+                  <span class="ota-device-group-title"><span class="ota-device-group-chevron" aria-hidden="true">›</span>OPPO</span>
+                  <span class="ota-device-count">8</span>
+                </summary>
+                <div class="ota-device-brand-body">
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="OPPO Find">
+                      <span class="ota-device-section-label">Find</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-38" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO FIND N5" data-search="OPPO FIND N5 OPPO Find N5">
+                            <span>OPPO Find N5</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-39" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO FIND X8" data-search="OPPO FIND X8 OPPO Find X8">
+                            <span>OPPO Find X8</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-40" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO FIND X8 PRO" data-search="OPPO FIND X8 PRO OPPO Find X8 Pro">
+                            <span>OPPO Find X8 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-41" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO FIND X8 ULTRA" data-search="OPPO FIND X8 ULTRA OPPO Find X8 Ultra">
+                            <span>OPPO Find X8 Ultra</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-42" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO FIND X9" data-search="OPPO FIND X9 OPPO Find X9">
+                            <span>OPPO Find X9</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-43" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO FIND X9 PRO" data-search="OPPO FIND X9 PRO OPPO Find X9 Pro">
+                            <span>OPPO Find X9 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-44" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO FIND X9 ULTRA" data-search="OPPO FIND X9 ULTRA OPPO Find X9 Ultra">
+                            <span>OPPO Find X9 Ultra</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="OPPO Reno">
+                      <span class="ota-device-section-label">Reno</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-45" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="OPPO RENO 15 PRO" data-search="OPPO RENO 15 PRO OPPO Reno 15 Pro">
+                            <span>OPPO Reno 15 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                  </div>
+              </details>
+                                        <details class="ota-device-brand" data-ota-device-brand="">
+                <summary>
+                  <span class="ota-device-group-title"><span class="ota-device-group-chevron" aria-hidden="true">›</span>Realme</span>
+                  <span class="ota-device-count">3</span>
+                </summary>
+                <div class="ota-device-brand-body">
+                                      <section class="ota-device-section" data-ota-device-section="" role="group" aria-label="Realme GT">
+                      <span class="ota-device-section-label">GT</span>
+                      <div class="ota-device-section-options">
+                                                  <button type="button" id="ota-device-option-46" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="Realme GT5 PRO" data-search="Realme GT5 PRO Realme GT5 Pro">
+                            <span>Realme GT5 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-47" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="Realme GT7 PRO" data-search="Realme GT7 PRO Realme GT7 Pro">
+                            <span>Realme GT7 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                                  <button type="button" id="ota-device-option-48" role="option" aria-selected="false" tabindex="-1" class="ota-device-option" data-device="Realme GT8 PRO" data-search="Realme GT8 PRO Realme GT8 Pro">
+                            <span>Realme GT8 Pro</span><span class="ota-device-check" aria-hidden="true">✓</span>
+                          </button>
+                                              </div>
+                    </section>
+                                  </div>
+              </details>
+                        <p class="ota-device-empty" id="otaDeviceEmpty" hidden="">No matching devices.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ota-region-field">
+      <label for="otaRegionTrigger">Region</label><br>
+      <select id="region" name="region" class="ota-select ota-region-native is-enhanced" aria-label="Region" data-selected="CN"><option value="GLO">GLO</option><option value="EU">EU</option><option value="IN">IN</option><option value="NA">NA</option><option value="CN">CN</option></select>
+
+      <div class="ota-region-picker" id="otaRegionPicker">
+        <button type="button" class="ota-region-trigger" id="otaRegionTrigger" aria-haspopup="listbox" aria-controls="otaRegionPopover" aria-expanded="false">
+          <span id="otaRegionValue">China (CN)</span>
+          <span class="ota-region-trigger-arrow" aria-hidden="true">⌄</span>
+        </button>
+        <div class="ota-region-popover" id="otaRegionPopover" role="listbox" aria-label="Choose a region" hidden="">
+          <div class="ota-region-results" id="otaRegionResults"><button type="button" class="ota-region-option" data-region="GLO" role="option" aria-selected="false"><span>Global (GLO)</span><span class="ota-region-check" aria-hidden="true">✓</span></button><button type="button" class="ota-region-option" data-region="EU" role="option" aria-selected="false"><span>Europe (EU)</span><span class="ota-region-check" aria-hidden="true">✓</span></button><button type="button" class="ota-region-option" data-region="IN" role="option" aria-selected="false"><span>India (IN)</span><span class="ota-region-check" aria-hidden="true">✓</span></button><button type="button" class="ota-region-option" data-region="NA" role="option" aria-selected="false"><span>North America (NA)</span><span class="ota-region-check" aria-hidden="true">✓</span></button><button type="button" class="ota-region-option is-selected" data-region="CN" role="option" aria-selected="true"><span>China (CN)</span><span class="ota-region-check" aria-hidden="true">✓</span></button></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ota-version-field">
+      <label for="otaVersionTrigger">Version</label><br>
+      <select id="version" name="version_index" class="ota-select ota-version-native is-enhanced" aria-label="Version" data-selected="0"><option value="0">PLK110_16.0.9.400(CN01)</option><option value="1">PLK110_16.0.8.302(CN01)</option><option value="2">PLK110_16.0.8.301(CN01)</option><option value="3">PLK110_16.0.7.207(CN01)</option><option value="4">PLK110_16.0.7.206(CN01)</option><option value="5">PLK110_16.0.5.702(CN01)</option><option value="6">PLK110_16.0.5.701(CN01)</option><option value="7">PLK110_16.0.3.503(CN01)</option><option value="8">PLK110_16.0.3.502(CN01)</option><option value="9">PLK110_16.0.2.402(CN01)</option><option value="10">PLK110_16.0.2.401(CN01)</option><option value="11">PLK110_16.0.1.301(CN01)</option><option value="12">PLK110_16.0.0.211(CN01)</option><option value="13">PLK110_16.0.0.210(CN01)</option><option value="14">PLK110_16.0.0.208(CN01)</option></select>
+
+      <div class="ota-version-picker" id="otaVersionPicker">
+        <button type="button" class="ota-version-trigger" id="otaVersionTrigger" aria-haspopup="dialog" aria-controls="otaVersionPopover" aria-expanded="false">
+          <span id="otaVersionValue">PLK110_16.0.9.400(CN01)</span>
+          <span class="ota-version-trigger-arrow" aria-hidden="true">⌄</span>
+        </button>
+        <div class="ota-version-popover" id="otaVersionPopover" role="dialog" aria-label="Choose a version" hidden="">
+          <div class="ota-version-popover-head">
+            <span>Available versions</span>
+            <small>Grouped by major release</small>
+          </div>
+          <div class="ota-version-results" id="otaVersionResults" role="listbox" aria-label="Versions"><details class="ota-version-group" open=""><summary><span class="ota-version-group-title"><span class="ota-version-group-chevron" aria-hidden="true">›</span><span>Android 16</span></span><span class="ota-version-count">15</span></summary><div class="ota-version-group-body"><button type="button" class="ota-version-option is-selected" data-version-index="0" role="option" aria-selected="true"><span class="ota-version-option-label">PLK110_16.0.9.400(CN01)</span><small class="ota-version-latest">Latest</small></button><button type="button" class="ota-version-option" data-version-index="1" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.8.302(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="2" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.8.301(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="3" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.7.207(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="4" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.7.206(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="5" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.5.702(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="6" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.5.701(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="7" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.3.503(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="8" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.3.502(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="9" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.2.402(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="10" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.2.401(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="11" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.1.301(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="12" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.0.211(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="13" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.0.210(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button><button type="button" class="ota-version-option" data-version-index="14" role="option" aria-selected="false"><span class="ota-version-option-label">PLK110_16.0.0.208(CN01)</span><span class="ota-version-check" aria-hidden="true">✓</span></button></div></details></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ota-resolve-actions">
+      <button type="submit" class="ota-btn primary" id="otaResolveBtn">Resolve OTA link</button>
+      <button type="submit" name="reset" value="1" class="ota-btn ghost" id="resetBtn">Reset</button>
+    </div>
+  </form>
+  <p class="ota-note">Using this archive in an app or script? <a href="https://roms.danielspringer.at/api/ota.php?help=1&amp;format=html">View the public OTA API documentation.</a></p>
+
+          <div class="ota-result adsense-action-zone google-anno-skip" id="resultBox" data-url="https://gauss-compota-c-cn.allawnfs.com/remove-143059dd252d32e338e77b420aeae6b3/g-10eab6008d5642cf42abd2aa41f847cb/component-ota/26/06/25/b3edddfc6ff942ae8f5c1073d1ec8e1e.zip?sign=0394a37e05e57647704a46595a632cd5&amp;t=6a65f345&amp;AWSAccessKeyId=ayjy7KyLVHvDqDax6_KqJgtBeORTJARg9MSGiL66&amp;Expires=1785068036&amp;Signature=bAPBnGKTLhUqe%2BHH4oZ6zqL3liE%3D" data-manual="0" data-link-ready="1" data-ota-key="3f1d6681569706ed" data-csrf="d1234022e7b5c3be252b4d604125763a13408cb36a3eee6dbe659038dc647f65">
+
+      <div class="ota-result-grid">
+        <section class="ota-package-panel" aria-labelledby="ota-package-title">
+          <header class="ota-panel-head">
+            <div>
+              <p class="ota-eyebrow">Resolved OTA</p>
+              <h3 id="ota-package-title">OP 15</h3>
+                              <p class="ota-version-name">PLK110_16.0.9.400(CN01)</p>
+                          </div>
+          </header>
+
+          <div class="ota-meta-chips">
+            <span class="ota-chip">Region: CN</span>            <span class="ota-chip">PLK110_11.A.68_0680_202606250030</span>            <span class="ota-chip">Sec. Patch: 2026-07-01</span>                      </div>
+
+          <a class="ota-arb-warning" id="otaArbWarning" href="https://roms.danielspringer.at/index.php?view=arb" hidden="">
+            <span class="ota-arb-warning-icon" aria-hidden="true">!</span>
+            <span>
+              <strong>Anti-Rollback detected: ARB 1</strong>
+              <small>Downgrading to firmware with a lower ARB index will hard-brick your device. Learn what this means.</small>
+            </span>
+            <span class="ota-arb-warning-arrow" aria-hidden="true">›</span>
+          </a>
+
+                      <div class="ota-timer" id="timerInfo">Link expires in <span style="display:inline-block;width:6ch;text-align:right;font-variant-numeric:tabular-nums;">06:46</span> (ongoing downloads will continue normally)</div>
+          
+          <div class="ota-package-actions">
+                          <form method="post" action="https://roms.danielspringer.at/index.php?view=ota&amp;ota_action=package" target="_blank" class="ota-lazy-package-form" id="otaPackageForm">
+                <input type="hidden" name="k" value="3f1d6681569706ed">
+                <input type="hidden" name="csrf" value="d1234022e7b5c3be252b4d604125763a13408cb36a3eee6dbe659038dc647f65">
+                <button type="submit" class="ota-btn ota-btn-download" id="downloadBtn">Download OTA package</button>
+              </form>
+                        <button type="button" class="ota-btn ghost" id="copyBtn">Copy OTA link</button>
+                          <a class="ota-btn ghost" id="changelogBtn" href="https://roms.danielspringer.at/index.php?view=changelog&amp;id=3725944cf80450ed3b36467de5bb5f6b73f4bf1ce2acf39310fb32b20eefea11&amp;lang=en#changelog-view" target="_blank" rel="noopener nofollow">Changelog</a>
+                      </div>
+        </section>
+
+                  <section class="ota-extract-panel" aria-labelledby="ota-extract-title">
+            <header class="ota-panel-head">
+              <div>
+                <p class="ota-eyebrow">Image extraction</p>
+                <h3 id="ota-extract-title">Download one image</h3>
+              </div>
+            </header>
+            <p class="ota-note">Select a partition. Cached images start immediately; otherwise the page shows extraction and queue progress.</p>
+            <iframe name="otaDownloadFrame" id="otaDownloadFrame" style="display:none;" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/saved_resource(3).html"></iframe>
+            <form method="post" action="https://roms.danielspringer.at/ota_extract.php?op=start" class="ota-image-form" id="otaImageForm">
+              <input type="hidden" name="k" value="3f1d6681569706ed">
+              <input type="hidden" name="csrf" value="d1234022e7b5c3be252b4d604125763a13408cb36a3eee6dbe659038dc647f65">
+              <label class="ota-image-field" for="otaImageSelect">
+                <span>Partition</span>
+                <select name="p" class="ota-select" id="otaImageSelect" aria-label="Image partition" disabled="">
+                  <option value="">Checking available partitions…</option>
+                </select>
+              </label>
+              <button type="submit" class="ota-btn ghost" id="otaImageDownloadBtn" disabled="">Download image</button>
+              <button type="button" class="ota-btn ghost" id="otaManifestRetryBtn" hidden="">Retry partition check</button>
+            </form>
+            <p class="ota-note" id="otaImageStatus" role="status" aria-live="polite">Reading the OTA partition manifest. Waiting: 00:14.</p>
+          </section>
+              </div>
+
+      <details class="ota-help" id="otaAdvancedOptions">
+        <summary>Advanced download options</summary>
+        <p class="ota-note" id="otaAdvancedStatus" hidden="">The OTA link will be prepared when these options are opened.</p>
+        <div id="otaAdvancedContent">
+
+        
+        <div>
+          <strong>Windows (CMD):</strong>
+          <div class="ota-code" id="codeCurl">
+<span id="codeCurlStr">curl -O "https://gauss-compota-c-cn.allawnfs.com/remove-143059dd252d32e338e77b420aeae6b3/g-10eab6008d5642cf42abd2aa41f847cb/component-ota/26/06/25/b3edddfc6ff942ae8f5c1073d1ec8e1e.zip?sign=0394a37e05e57647704a46595a632cd5&amp;t=6a65f345&amp;AWSAccessKeyId=ayjy7KyLVHvDqDax6_KqJgtBeORTJARg9MSGiL66&amp;Expires=1785068036&amp;Signature=bAPBnGKTLhUqe%2BHH4oZ6zqL3liE%3D"</span>
+            <button type="button" class="ota-mini-btn" data-copy="#codeCurlStr">Copy</button>
+          </div>
+        </div>
+
+        <div>
+          <strong>macOS / Linux (Terminal):</strong>
+          <div class="ota-code" id="codeWget">
+<span id="codeWgetStr">wget "https://gauss-compota-c-cn.allawnfs.com/remove-143059dd252d32e338e77b420aeae6b3/g-10eab6008d5642cf42abd2aa41f847cb/component-ota/26/06/25/b3edddfc6ff942ae8f5c1073d1ec8e1e.zip?sign=0394a37e05e57647704a46595a632cd5&amp;t=6a65f345&amp;AWSAccessKeyId=ayjy7KyLVHvDqDax6_KqJgtBeORTJARg9MSGiL66&amp;Expires=1785068036&amp;Signature=bAPBnGKTLhUqe%2BHH4oZ6zqL3liE%3D"</span>
+            <button type="button" class="ota-mini-btn" data-copy="#codeWgetStr">Copy</button>
+          </div>
+        </div>
+
+        <div class="ota-note">
+          Tip: On slow networks, <em>aria2c</em> can speed things up:
+        </div>
+        <div class="ota-code" id="codeAria2">
+<span id="codeAria2Str">aria2c -x8 -s8 "https://gauss-compota-c-cn.allawnfs.com/remove-143059dd252d32e338e77b420aeae6b3/g-10eab6008d5642cf42abd2aa41f847cb/component-ota/26/06/25/b3edddfc6ff942ae8f5c1073d1ec8e1e.zip?sign=0394a37e05e57647704a46595a632cd5&amp;t=6a65f345&amp;AWSAccessKeyId=ayjy7KyLVHvDqDax6_KqJgtBeORTJARg9MSGiL66&amp;Expires=1785068036&amp;Signature=bAPBnGKTLhUqe%2BHH4oZ6zqL3liE%3D"</span>
+          <button type="button" class="ota-mini-btn" data-copy="#codeAria2Str">Copy</button>
+        </div>
+        </div>
+      </details> <!-- /.ota-help -->
+
+    </div> <!-- /.ota-result -->
+  
+</div> <!-- /.ota-container -->
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const resultBox = document.getElementById('resultBox');
+  const deviceSelect = document.getElementById('device');
+  const regionSelect = document.getElementById('region');
+  const versionSelect = document.getElementById('version');
+
+  const imageForm = document.getElementById('otaImageForm');
+  const imageSelect = document.getElementById('otaImageSelect');
+  const imageDownloadBtn = document.getElementById('otaImageDownloadBtn');
+  const imageDownloadFrame = document.getElementById('otaDownloadFrame');
+  const imageStatus = document.getElementById('otaImageStatus');
+  const manifestRetryBtn = document.getElementById('otaManifestRetryBtn');
+  const arbWarning = document.getElementById('otaArbWarning');
+  let imagePoll = null;
+  let manifestPoll = null;
+  let activeImageRequest = 0;
+  let manifestReady = false;
+
+  function clearImageTimers() {
+    if (imagePoll !== null) {
+      clearInterval(imagePoll);
+      imagePoll = null;
+    }
+
+  }
+
+  function setImageStatus(message, isError) {
+    if (!imageStatus) {
+      return;
+    }
+
+    imageStatus.hidden = false;
+    imageStatus.textContent = message;
+    imageStatus.classList.toggle('ota-alert', Boolean(isError));
+    imageStatus.classList.toggle('ota-alert-danger', Boolean(isError));
+  }
+
+  function hideOldResult() {
+    if (resultBox) {
+      resultBox.style.display = 'none';
+    }
+  }
+
+  function resetImageDownloadUi() {
+    if (imageDownloadBtn) {
+      imageDownloadBtn.disabled = !manifestReady;
+      imageDownloadBtn.textContent = 'Download image';
+      imageDownloadBtn.style.opacity = '';
+      imageDownloadBtn.style.cursor = '';
+    }
+
+    if (imageSelect) {
+      imageSelect.disabled = !manifestReady;
+      imageSelect.style.opacity = '';
+      imageSelect.style.pointerEvents = '';
+    }
+  }
+
+  if (deviceSelect) {
+    deviceSelect.addEventListener('change', hideOldResult);
+  }
+
+  if (regionSelect) {
+    regionSelect.addEventListener('change', hideOldResult);
+  }
+
+  if (versionSelect) {
+    versionSelect.addEventListener('change', hideOldResult);
+  }
+
+  function formatImageWait(seconds) {
+    const safe = Math.max(0, Number(seconds) || 0);
+    const minutes = Math.floor(safe / 60);
+    return String(minutes).padStart(2, '0') + ':' + String(safe % 60).padStart(2, '0');
+  }
+
+  function imageFailure(message, reference) {
+    clearImageTimers();
+    setImageStatus(message + (reference ? ' Reference: ' + reference : ''), true);
+    resetImageDownloadUi();
+  }
+
+  function clearManifestPoll() {
+    if (manifestPoll !== null) {
+      clearInterval(manifestPoll);
+      manifestPoll = null;
+    }
+  }
+
+  function manifestFailure(message, reference) {
+    clearManifestPoll();
+    manifestReady = false;
+    if (imageSelect) imageSelect.disabled = true;
+    if (imageDownloadBtn) imageDownloadBtn.disabled = true;
+    if (manifestRetryBtn) manifestRetryBtn.hidden = false;
+    setImageStatus(message + (reference ? ' Reference: ' + reference : ''), true);
+  }
+
+  function applyArbWarning(arbOne) {
+    if (arbWarning) arbWarning.hidden = arbOne !== true;
+  }
+
+  function applyManifestPartitions(partitions, arbOne) {
+    clearManifestPoll();
+    applyArbWarning(arbOne);
+    if (!imageSelect || !imageDownloadBtn) return;
+    imageSelect.replaceChildren();
+    if (!Array.isArray(partitions) || partitions.length === 0) {
+      const option = new Option('No supported images available', '');
+      imageSelect.add(option);
+      manifestReady = false;
+      imageSelect.disabled = true;
+      imageDownloadBtn.disabled = true;
+      if (manifestRetryBtn) manifestRetryBtn.hidden = true;
+      setImageStatus('No supported images are available in this OTA.', false);
+      return;
+    }
+    partitions.forEach(function (entry) {
+      if (entry && typeof entry.partition === 'string' && typeof entry.label === 'string') {
+        imageSelect.add(new Option(entry.label, entry.partition));
+      }
+    });
+    manifestReady = imageSelect.options.length > 0;
+    imageSelect.disabled = !manifestReady;
+    imageDownloadBtn.disabled = !manifestReady;
+    if (manifestRetryBtn) manifestRetryBtn.hidden = true;
+    if (manifestReady) {
+      imageStatus.hidden = true;
+      imageStatus.textContent = '';
+      imageStatus.classList.remove('ota-alert', 'ota-alert-danger');
+    } else {
+      setImageStatus('No supported images are available in this OTA.', false);
+    }
+  }
+
+  function showManifestProgress(payload) {
+    const waited = formatImageWait(payload.wait_seconds || 0);
+    const position = payload.state === 'queued' && Number(payload.position) > 0 ? ' Queue position: ' + payload.position + '.' : '';
+    setImageStatus((payload.message || 'Checking available partitions.') + position + ' Waiting: ' + waited + '.', false);
+  }
+
+  function pollManifestStatus(token) {
+    manifestPoll = setInterval(async function () {
+      try {
+        const response = await fetch('/ota_extract.php?op=manifest_status&token=' + encodeURIComponent(token), {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+        const payload = await readImageJson(response);
+        if (payload.state === 'ready') {
+          applyManifestPartitions(payload.partitions, payload.arb_1);
+          return;
+        }
+        showManifestProgress(payload);
+      } catch (error) {
+        manifestFailure(error.message, error.reference);
+      }
+    }, 1500);
+  }
+
+  async function startManifestCheck(resolveAttempted) {
+    clearManifestPoll();
+    manifestReady = false;
+    if (imageSelect) imageSelect.disabled = true;
+    if (imageDownloadBtn) imageDownloadBtn.disabled = true;
+    if (manifestRetryBtn) manifestRetryBtn.hidden = true;
+    setImageStatus('Checking available partitions…', false);
+    const formData = new FormData();
+    formData.set('k', imageForm?.querySelector('input[name="k"]')?.value || '');
+    formData.set('csrf', imageForm?.querySelector('input[name="csrf"]')?.value || '');
+    try {
+      const response = await fetch('/ota_extract.php?op=manifest_start', {
+        method: 'POST',
+        body: formData,
+        credentials: 'same-origin',
+        cache: 'no-store'
+      });
+      const payload = await readImageJson(response);
+      if (payload.state === 'ready') {
+        applyManifestPartitions(payload.partitions, payload.arb_1);
+        return;
+      }
+      showManifestProgress(payload);
+      pollManifestStatus(payload.token);
+    } catch (error) {
+      if (
+        !resolveAttempted
+        && error.needsResolve
+        && typeof window.op13ResolveOtaLink === 'function'
+      ) {
+        setImageStatus('Preparing OTA link to check available partitions…', false);
+        try {
+          await window.op13ResolveOtaLink(true);
+          await startManifestCheck(true);
+          return;
+        } catch (resolveError) {
+          manifestFailure(resolveError.message, resolveError.reference);
+          return;
+        }
+      }
+      manifestFailure(error.message, error.reference);
+    }
+  }
+
+  async function readImageJson(response) {
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch (_) {
+      throw new Error('The extraction service returned an invalid response.');
+    }
+    if (!response.ok || !payload || payload.state === 'failed') {
+      const error = new Error(payload?.message || 'Image extraction failed. Please try again.');
+      error.reference = payload?.reference || '';
+      error.needsResolve = Boolean(payload?.needs_resolve);
+      throw error;
+    }
+    return payload;
+  }
+
+  function showImageProgress(payload) {
+    const waited = formatImageWait(payload.wait_seconds || 0);
+    if (payload.state === 'queued') {
+      const position = Number(payload.position) > 0 ? ' Queue position: ' + payload.position + '.' : '';
+      setImageStatus((payload.message || 'Waiting for an extraction slot.') + position + ' Waiting: ' + waited + '.', false);
+      imageDownloadBtn.textContent = 'Queued…';
+    } else if (payload.state === 'running') {
+      setImageStatus((payload.message || 'Image is being extracted.') + ' Elapsed: ' + waited + '.', false);
+      imageDownloadBtn.textContent = 'Extracting…';
+    }
+  }
+
+  function startImageDownload(token) {
+    clearImageTimers();
+    setImageStatus('Image ready. Download starting…', false);
+    imageDownloadFrame.src = '/ota_extract.php?op=download&token=' + encodeURIComponent(token);
+    resetImageDownloadUi();
+    setTimeout(function () {
+      if (imageStatus && imageStatus.textContent === 'Image ready. Download starting…') {
+        imageStatus.hidden = true;
+      }
+    }, 4000);
+  }
+
+  function pollImageStatus(token, requestNumber) {
+    imagePoll = setInterval(async function () {
+      if (requestNumber !== activeImageRequest) return;
+      try {
+        const response = await fetch('/ota_extract.php?op=status&token=' + encodeURIComponent(token), {
+          credentials: 'same-origin',
+          cache: 'no-store'
+        });
+        const payload = await readImageJson(response);
+        if (payload.state === 'ready') {
+          startImageDownload(token);
+          return;
+        }
+        showImageProgress(payload);
+      } catch (error) {
+        imageFailure(error.message, error.reference);
+      }
+    }, 2000);
+  }
+
+  if (imageForm && imageDownloadBtn) {
+    imageForm.addEventListener('submit', async function (event) {
+      event.preventDefault();
+      clearImageTimers();
+      const requestNumber = ++activeImageRequest;
+      const formData = new FormData(imageForm);
+      imageDownloadBtn.disabled = true;
+      imageDownloadBtn.textContent = 'Preparing…';
+
+      if (imageSelect) {
+        imageSelect.disabled = true;
+      }
+      const selectedImage = imageSelect?.options[imageSelect.selectedIndex]?.textContent || 'image';
+      setImageStatus('Preparing ' + selectedImage + '…', false);
+      try {
+        let payload = null;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const response = await fetch(imageForm.action, {
+              method: 'POST',
+              body: formData,
+              credentials: 'same-origin',
+              cache: 'no-store'
+            });
+            payload = await readImageJson(response);
+            break;
+          } catch (error) {
+            if (
+              attempt === 0
+              && error.needsResolve
+              && typeof window.op13ResolveOtaLink === 'function'
+            ) {
+              setImageStatus('Preparing OTA link for this image…', false);
+              await window.op13ResolveOtaLink(true);
+              continue;
+            }
+            throw error;
+          }
+        }
+        if (requestNumber !== activeImageRequest || !payload) return;
+        if (payload.state === 'ready') {
+          startImageDownload(payload.token);
+          return;
+        }
+        showImageProgress(payload);
+        pollImageStatus(payload.token, requestNumber);
+      } catch (error) {
+        if (requestNumber === activeImageRequest) {
+          imageFailure(error.message, error.reference);
+        }
+      }
+    });
+
+    manifestRetryBtn?.addEventListener('click', function () {
+      startManifestCheck(false);
+    });
+    startManifestCheck();
+  }
+});
+</script>
+
+<script src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/ota.js" defer=""></script>
+<script src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/ota_ui.js" defer=""></script>
+        </main>
+
+        <footer class="footer footer-redesign">
+            <div class="op13-footer-ads" aria-label="Advertisements">
+                    <aside class="op13-ad op13-ad-browser op13-ad-desktop" data-op13-ad="" data-op13-ad-name="browser-before-grid" aria-label="Advertisement">
+        <!-- browser-before-grid -->
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8628531066320026" data-ad-slot="5288807112" data-ad-format="horizontal" data-full-width-responsive="true" data-adsbygoogle-status="done" data-ad-status="filled"><iframe id="aswift_4" name="aswift_4" data-load-complete="true" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/saved_resource(4).html"></iframe></ins>
+    </aside>
+                        <aside class="op13-ad op13-ad-footer op13-ad-desktop" data-op13-ad="" data-op13-ad-name="footer-before-traffic" aria-label="Advertisement">
+        <!-- footer-before-traffic -->
+        <ins class="adsbygoogle" style="display:block" data-ad-client="ca-pub-8628531066320026" data-ad-slot="2173209095" data-ad-format="horizontal" data-full-width-responsive="true" data-adsbygoogle-status="done" data-ad-status="filled"><iframe id="aswift_5" name="aswift_5" data-load-complete="true" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/saved_resource(5).html"></iframe></ins>
+    </aside>
+                </div>
+
+            <section class="footer-topline">
+                <div class="footer-support-copy footer-archive-copy">
+                    <div class="footer-support-head">
+                        <span class="footer-eyebrow">SourceForge mirror</span>
+                    </div>
+                    <p class="footer-note footer-note-main">
+                        <span>Archive note</span>
+                        Older flashers may move to <a href="https://sourceforge.net/projects/oneplus13flashers" target="_blank" rel="noopener noreferrer">SourceForge</a> when storage gets tight.
+                    </p>
+                </div>
+
+                <nav class="footer-link-deck" aria-label="Footer links">
+                    <a href="https://roms.danielspringer.at/index.php?dir=EDL"><span>EDL</span><small>Rescue files</small></a>
+                    <a href="https://roms.danielspringer.at/index.php?view=stats"><span>Stats</span><small>Downloads</small></a>
+                    <a href="https://roms.danielspringer.at/index.php?view=impressum"><span>Legal</span><small>Impressum &amp; Privacy</small></a>
+                </nav>
+            </section>
+
+            <section class="traffic-console" aria-label="Traffic monitor">
+                <div class="traffic-console-head">
+                    <span>Live server stats</span>
+                    <strong>Bandwidth monitor</strong>
+                    <p>Main server and mirror activity at a glance.</p>
+                </div>
+                <div id="traffic-info" class="traffic-stats">
+                    <p class="traffic-row">
+                        <span class="traffic-label">Upload</span>
+                        <span class="traffic-main"><span id="uploadSpeed">15.07 MB/s</span></span>
+                        <span class="traffic-mirror">Mirror <span id="uploadSpeedMirror">0.00 MB/s</span></span>
+                    </p>
+                    <p class="traffic-row">
+                        <span class="traffic-label">Today</span>
+                        <span class="traffic-main"><span id="todayTraffic">1.18 TB</span></span>
+                        <span class="traffic-mirror">Mirror <span id="todayTrafficMirror">18.53 GB</span></span>
+                    </p>
+                    <p class="traffic-row">
+                        <span class="traffic-label">Last 24h</span>
+                        <span class="traffic-main"><span id="last24Traffic">1.98 TB</span></span>
+                        <span class="traffic-mirror">Mirror <span id="last24TrafficMirror">18.56 GB</span></span>
+                    </p>
+                    <p class="traffic-row">
+                        <span class="traffic-label">Month</span>
+                        <span class="traffic-main"><span id="monthTraffic">52.80 TB</span></span>
+                        <span class="traffic-mirror">Mirror <span id="monthTrafficMirror">3.26 TB</span></span>
+                    </p>
+                    <p class="traffic-row">
+                        <span class="traffic-label">Year</span>
+                        <span class="traffic-main"><span id="yearTraffic">468.05 TB</span></span>
+                        <span class="traffic-mirror">Mirror <span id="yearTrafficMirror">14.56 TB</span></span>
+                    </p>
+                    <p class="traffic-note" style="display: none;">
+                        Note: If outbound traffic goes over 3 TB within 24 hours, the server is throttled to 300 Mbit/s instead of 2.5 Gbit/s.
+                    </p>
+                </div>
+            </section>
+
+            <section class="community-simple" aria-label="Community support links">
+                <a class="support-btn" href="https://t.me/op13chat" target="_blank" rel="noopener noreferrer">
+                    <img src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/telegram.svg" alt="" class="btn-icon">13 Series General Support
+                </a>
+                <a class="support-btn" href="https://t.me/OP13CustomRoms" target="_blank" rel="noopener noreferrer">
+                    <img src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/telegram.svg" alt="" class="btn-icon">OnePlus 13 Custom ROMs Support
+                </a>
+                <a class="support-btn" href="https://t.me/op15chat" target="_blank" rel="noopener noreferrer">
+                    <img src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/telegram.svg" alt="" class="btn-icon">15 Series General Support
+                </a>
+            </section>
+        </footer>
+    </div>
+
+    <div class="op15-notice-launcher" data-op15-notice-launcher="">
+    <button type="button" data-op15-notice-open="">
+        <span class="op15-notice-launcher-icon" aria-hidden="true">!</span>
+        <span>Important bootloader notice</span>
+    </button>
+</div>
+
+<div class="op15-notice-backdrop" data-op15-notice-backdrop="" hidden="">
+    <section class="op15-notice-dialog" role="dialog" aria-modal="true" aria-labelledby="op15-notice-title" aria-describedby="op15-notice-description" tabindex="-1">
+        <button class="op15-notice-close" type="button" data-op15-notice-close="" aria-label="Close notice">×</button>
+        <div class="op15-notice-symbol" aria-hidden="true">!</div>
+        <p class="op15-notice-eyebrow">OnePlus 15 · Chinese hardware</p>
+        <h2 id="op15-notice-title">Important notice for Chinese OnePlus 15 devices running OxygenOS with a locked bootloader</h2>
+        <div id="op15-notice-description" class="op15-notice-copy">
+            <p>If you have a Chinese OnePlus 15 that was converted to OxygenOS and the bootloader was locked again, I strongly recommend restoring bootloader/Fastboot access now while the free method is still available.</p>
+            <p>You do not need to unlock the bootloader afterward. The important part is restoring access to the real bootloader/Fastboot mode.</p>
+            <p><strong>If your device is affected, do this sooner rather than later.</strong></p>
+            <p class="op15-notice-credit">Huge thanks to mikoker for discovering this method.</p>
+        </div>
+        <div class="op15-notice-actions">
+            <a class="op15-notice-primary" href="https://xdaforums.com/t/tool-windows-linux-deeptest-2-0-oneplus-15-deeptesting-unlock-gui.4796050/" target="_blank" rel="noopener noreferrer" data-op15-notice-xda="" data-op15-notice-token="b95aae20dbd4c21b8a1270bd09383086">Read instructions on XDA</a>
+            <a class="op15-notice-secondary" href="https://t.me/op15chat" target="_blank" rel="noopener noreferrer">Discuss on Telegram</a>
+            <button class="op15-notice-secondary" type="button" data-op15-notice-remind="">Remind me later</button>
+        </div>
+        <button class="op15-notice-disable" type="button" data-op15-notice-disable="">Don’t show automatically again</button>
+    </section>
+</div>
+    <script src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/footer-script.js"></script>
+    <script src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/op15_notice.js" defer=""></script>
+
+
+<iframe id="rokt-controller-frame" data-core-type="controller" aria-hidden="true" tabindex="-1" sandbox="allow-scripts allow-same-origin allow-popups" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/index.2.7233.0.html" name="9ca3e849-e8b1-485b-ab06-e6ccfee31903" style="width: 0px !important; height: 0px !important; border-width: 0px !important; overflow: hidden !important; opacity: 0 !important; pointer-events: none !important; position: absolute !important; z-index: -1 !important;"></iframe><iframe name="integration_type=preload_persistent&amp;init_timestamp=1785067616864&amp;plugin_name=dcui" src="./OTA resolver and image extraction · Daniel Springer ROM Archive_files/index.html" id="dcui" style="display: none;"></iframe></body><div data-klarna-plugin-views-container=""><template shadowrootmode="closed"><div style="position: fixed; left: 0px; top: 0px; z-index: 2147483647;"><div class="css-175oi2r" style="opacity: 0; transform: scale(0.88) translateX(5760px) translateY(-199.2px);"><div class="react-draggable" style="top: 24px; right: 24px; border-radius: 16px; height: 94vh; background-color: rgb(245, 245, 247); position: fixed; width: 375px; z-index: 2; will-change: transform; transition: transform 120ms ease-out allow-discrete, opacity 300ms, display 300ms; display: none; opacity: 0; box-sizing: border-box; transform: translate(0px, 0px);"><div style="flex: 1 1 0%; display: flex; height: 100vh; align-items: center; justify-content: center;"><svg viewBox="0 0 100 100" style="width: 100px; height: 100px;"><style>@keyframes klarna-loader-animation-dotted {0%, 100% { transform: translateY(0); }50% { transform: translateY(-10%); }}</style><circle cx="11.5" cy="50" r="11.5" style="fill: rgb(11, 5, 29); animation: 0.8s ease-in-out 0s infinite normal none running klarna-loader-animation-dotted;"></circle><circle cx="50" cy="50" r="11.5" style="fill: rgb(11, 5, 29); animation: 0.8s ease-in-out 0.2s infinite normal none running klarna-loader-animation-dotted;"></circle><circle cx="88.5" cy="50" r="11.5" style="fill: rgb(11, 5, 29); animation: 0.8s ease-in-out 0.4s infinite normal none running klarna-loader-animation-dotted;"></circle></svg></div><div style="box-sizing: border-box; display: flex; align-items: stretch; flex-direction: column; flex-shrink: 0; border-style: solid; border-width: 0px; position: absolute; z-index: 0; min-height: 0px; min-width: 0px; transition-property: opacity; transition-timing-function: ease-out; transition-duration: 300ms; transition-delay: 10ms; inset: 0px; opacity: 0;"><div class="dragHandle" style="box-sizing: border-box; display: flex; align-items: stretch; flex-direction: column; flex-shrink: 0; border-style: solid; border-width: 0px; position: absolute; z-index: 999; min-height: 0px; min-width: 0px; cursor: move; height: 40px; width: 44%; align-self: flex-start; margin-left: 45px;"></div><iframe src="chrome-extension://hfapbcheiepjppjbnkphkmegjlipojba/klapp.html?klapp-id=drawer" allow="clipboard-read; clipboard-write;" style="background-color: rgb(255, 255, 255); border-width: medium; border-style: none; border-color: currentcolor; border-image: none; height: 100%; width: 100%; border-radius: 16px; box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 10px 0px;"></iframe></div></div></div><div class="react-draggable" style="background-color: rgb(255, 255, 255); border-radius: 16px; box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 10px 0px; overflow: hidden; width: 375px; position: absolute; pointer-events: auto; will-change: transform; transition: transform 120ms ease-out allow-discrete, opacity 250ms ease-out, display 250ms ease-out; opacity: 0; display: none; transform: translate(0px, 0px); height: min(max(0px, min(410px, -48px + 100vh)), -48px + 100vh); left: max(24px, min(100vw, -399px + 100vw)); top: max(24px, min(24px, -24px + 100vh - min(max(0px, min(410px, -48px + 100vh)), -48px + 100vh))); bottom: min(-24px + 100vh - min(max(0px, min(410px, -48px + 100vh)), -48px + 100vh), 24px);"><div class="dragHandle" style="box-sizing: border-box; display: flex; align-items: stretch; flex-direction: column; flex-shrink: 0; border-style: solid; border-width: 0px; position: absolute; z-index: 999; min-height: 0px; min-width: 0px; cursor: move; height: 40px; width: 44%; align-self: flex-start; margin-left: 45px;"></div><div style="flex: 1 1 0%; display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 100 100" style="width: 100px; height: 100px;"><style>@keyframes klarna-loader-animation-dotted {0%, 100% { transform: translateY(0); }50% { transform: translateY(-10%); }}</style><circle cx="11.5" cy="50" r="11.5" style="fill: rgb(11, 5, 29); animation: 0.8s ease-in-out 0s infinite normal none running klarna-loader-animation-dotted;"></circle><circle cx="50" cy="50" r="11.5" style="fill: rgb(11, 5, 29); animation: 0.8s ease-in-out 0.2s infinite normal none running klarna-loader-animation-dotted;"></circle><circle cx="88.5" cy="50" r="11.5" style="fill: rgb(11, 5, 29); animation: 0.8s ease-in-out 0.4s infinite normal none running klarna-loader-animation-dotted;"></circle></svg></div><div style="box-sizing: border-box; display: flex; align-items: stretch; flex-direction: column; flex-shrink: 0; border-style: solid; border-width: 0px; position: relative; z-index: 0; min-height: 0px; min-width: 0px; transition-property: opacity; transition-timing-function: ease-out; transition-duration: 300ms; transition-delay: 10ms; width: 100%; height: 100%; opacity: 0;"><iframe src="chrome-extension://hfapbcheiepjppjbnkphkmegjlipojba/klapp.html?klapp-id=modals" allow="clipboard-read; clipboard-write;" style="background-color: rgb(255, 255, 255); border-width: medium; border-style: none; border-color: currentcolor; border-image: none; height: 100%; width: 100%; border-radius: 16px; box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 10px 0px;"></iframe></div></div><div style="box-sizing: border-box; display: flex; align-items: stretch; flex-direction: column; flex-shrink: 0; border-style: solid; border-width: 0px; position: fixed; z-index: 0; min-height: 0px; min-width: 0px; animation-duration: 250ms; animation-fill-mode: both; box-shadow: rgba(0, 0, 0, 0.5) 0px 0px 10px 0px; max-height: calc(-60px + 100vh); width: 198px; padding: 12px 10px; background-color: rgb(245, 245, 247); border-radius: 16px; transition-property: opacity, transform, width, height; transition-timing-function: ease-out, ease-out, ease-in-out, ease-in-out; transition-duration: 250ms, 250ms, 150ms, 150ms; pointer-events: none; opacity: 0; left: max(30px, min(30px, -248px + 100vw)); top: max(30px, min(30px, -74px + 100vh)); transform: translateY(5px);"><div role="button" aria-disabled="false" tabindex="0" data-fs-element="Extension Platform - Quick Actions - Close Button" style="display: flex; flex-direction: column; cursor: pointer;"><div style="box-sizing: border-box; display: flex; align-items: center; flex-direction: column; flex-shrink: 0; border-style: solid; border-width: 0px; position: absolute; z-index: 0; min-height: 0px; min-width: 0px; justify-content: center; width: 24px; height: 24px; border-radius: 24px; background-color: rgb(243, 243, 247); box-shadow: rgba(0, 0, 0, 0.1) 0px 6px 12px; top: -20px; right: -20px;"><svg aria-hidden="true" role="img" viewBox="0 0 20 20" height="20" width="20"><g fill="none" fill-rule="evenodd" transform="translate(4, 4) scale(1)"><path d="m10.945 2.045-.99-.99L6 5.01 2.045 1.055l-.99.99L5.01 6 1.055 9.955l.99.99L6 6.99l3.955 3.955.99-.99L6.99 6l3.955-3.955Z" fill="rgba(11, 5, 29, 1)" style="transition: fill 0.2s;"></path></g></svg></div></div></div></div></template></div><grammarly-desktop-integration data-grammarly-shadow-root="true" style="visibility: visible !important;"><template shadowrootmode="open"><style>
+      div.grammarly-desktop-integration {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+        -moz-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select:none;
+        user-select:none;
+      }
+
+      div.grammarly-desktop-integration:before {
+        content: attr(data-content);
+      }
+    </style><div aria-label="grammarly-integration" role="group" tabindex="-1" class="grammarly-desktop-integration" data-content="{&quot;mode&quot;:&quot;full&quot;,&quot;isActive&quot;:true,&quot;isUserDisabled&quot;:false}"></div></template></grammarly-desktop-integration><grammarly-assistant-notch-view role="presentation" data-grammarly-ignore-keyboard-events="true" data-grammarly-shadow-root="true" class="dnXmp" style="visibility: visible !important; --rem: 16;"><template shadowrootmode="open"><style>.ymqHP{visibility:hidden;position:fixed;}.ymqHP:after{content:'';position:absolute;visibility:visible;height:3px;bottom:0;border-radius:10px;background:#488cc8;animation:JQguZ 1.3s ease forwards}.ymqHP.ExcM8:after{animation:JQguZ .2s ease forwards}@keyframes JQguZ{0%{width:0%}100%{width:100%}}
+</style><link rel="stylesheet" type="text/css" href="chrome-extension://kbfnbcaeplbcioakkpcpgfkobkghlhen/src/css/designSystem.styles.css"><link rel="stylesheet" type="text/css" href="chrome-extension://kbfnbcaeplbcioakkpcpgfkobkghlhen/src/css/assistantUiKit.styles.css"><link rel="stylesheet" type="text/css" href="chrome-extension://kbfnbcaeplbcioakkpcpgfkobkghlhen/src/css/AAA-initAssistant.styles.css"><div aria-label="grammarly-global-assistant-notch" role="group" tabindex="-1"></div><div data-origin-theme="grammarly" data-origin-mode="light"><div data-gds-theme="light"><div class="_notchContainer_jPcgv_notchContainer _rightEdge_G9MBv_rightEdge" data-testid="assistant-notch-container" style="top: 996px;"><div data-testid="assistant-notch" class="_notch_jKYXX_notch _hidden_RGuj7_hidden  _rightEdge_G9MBv_rightEdge" style="--hidden-percent: 100%; top: 996px;"><button class="_notchButton_HXx5H_notchButton" data-testid="assistant-notch-button" aria-label="Start a chat with Grammarly AI"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" class="_heroIcon_-kKnp_heroIcon" data-testid="hero-icon"><path d="M18.4895 22.669L12.8177 19.563C12.5094 19.3927 12.1337 19.3927 11.8254 19.563L6.15358 22.669C5.24057 23.168 4.24536 22.1552 4.77085 21.2628L11.435 9.97192C11.8313 9.29964 12.8089 9.29964 13.2052 9.97192L19.8693 21.2628C20.3948 22.1552 19.4025 23.168 18.4866 22.669H18.4895ZM12.3216 7.71728C14.127 7.71728 15.589 6.25822 15.589 4.45862C15.589 2.65901 14.127 1.19995 12.3216 1.19995C10.5161 1.19995 9.05409 2.65901 9.05409 4.45862C9.05409 6.25822 10.5161 7.71728 12.3216 7.71728Z" class="_heroIconPath_g2gJS_heroIconPath"></path></svg><input aria-hidden="true" tabindex="-1" style="position: absolute; inset: 0px; opacity: 0; cursor: inherit;"></button></div></div></div></div></template></grammarly-assistant-notch-view></html>

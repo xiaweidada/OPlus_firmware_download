@@ -18,14 +18,10 @@ import org.jsoup.nodes.Document
  * candidate URL must survive [looksLikeFirmwareUrl] before it is accepted, and a page with
  * nothing firmware-shaped on it yields null rather than a guess.
  *
- * TODO: calibrate against a real post-submit page. The strategies here were written against the
- * *previous* layout plus the current form page, because the site now answers the POST with 429
- * from any address that has scraped it recently — including a fresh session sending a single
- * request — so no current sample could be captured. What is verified is the rejection behaviour
- * (a 429 page, a captcha, or unrelated links all yield null); what is unverified is whether any
- * strategy still *matches* on the new markup. Capture one result page from an address the site
- * has not seen — a phone on cellular works — and pin it as a fixture in [ResultParserTest].
- * Low urgency: this is the fallback, and the JSON API path in [DanielspringerApi] is unaffected.
+ * Calibrated against both layouts: `after_post.html` (the older one) and `after_post_current.html`
+ * (captured 2026-07-26). The current page dropped the `<a id="downloadBtn">` anchor — that id now
+ * belongs to a submit button with no href — and stopped marking any `<option selected>` in the
+ * version list, so the two strategies the original parser relied on both fail there.
  */
 object ResultParser {
 
@@ -152,9 +148,16 @@ object ResultParser {
     /**
      * Chip text, without depending on the `ota-chip` class name surviving. Anything whose class
      * merely contains "chip" counts, and callers fall back to scanning page text.
+     *
+     * Only leaves are taken. The chips sit inside `<div class="ota-meta-chips">`, which also
+     * matches "contains chip" — and its text is every chip run together, which then looks like a
+     * single chip holding both the build id and the patch date.
      */
     private fun extractChips(doc: Document): List<String> =
-        doc.select(".ota-chip, [class*=chip]").map { it.text().trim() }.filter { it.isNotEmpty() }
+        doc.select(CHIP_SELECTOR)
+            .filter { it.select(CHIP_SELECTOR).isEmpty() }
+            .map { it.text().trim() }
+            .filter { it.isNotEmpty() }
 
     /** Backwards-compat shims used by older tests. */
     fun extractDownloadUrl(html: String): String? = parseResultHtml(html, 0).downloadUrl
@@ -163,6 +166,8 @@ object ResultParser {
         parseResultHtml(html, versionIndex).displayName
 
     fun parseExpiresEpochSeconds(url: String): Long? = parseFirmwareUrlExpiresEpochSeconds(url)
+
+    private const val CHIP_SELECTOR = ".ota-chip, [class*=chip]"
 
     private val OTA_TIMESTAMP_RE = Regex("""_\d{12}\b""")
     private val OTA_TIMESTAMP_TEXT_RE = Regex("""\b[A-Z0-9]+_\d{2}\.[A-Z]\.\d+_\d+_\d{12}\b""")
