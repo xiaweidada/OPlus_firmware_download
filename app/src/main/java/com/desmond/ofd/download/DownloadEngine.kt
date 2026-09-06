@@ -3,12 +3,13 @@ package com.desmond.ofd.download
 import android.content.ContentResolver
 import android.net.Uri
 import android.util.Log
-import com.desmond.ofd.firmware.FirmwareDownloadGate
-import com.desmond.ofd.firmware.FirmwareDownloadGateResult
+import com.desmond.ofd.firmware.FirmwareUrlProbe
+import com.desmond.ofd.firmware.FirmwareUrlProbeResult
 import com.desmond.ofd.firmware.validateFirmwareSize
 import com.desmond.ofd.http.FIRMWARE_ID_HEADER
 import com.desmond.ofd.http.FIRMWARE_ID_VALUE
 import com.desmond.ofd.http.FIRMWARE_USER_AGENT
+import com.desmond.ofd.http.await
 import com.desmond.ofd.http.parseContentRange
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
@@ -21,13 +22,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
-import okhttp3.Callback
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
@@ -35,8 +33,6 @@ import java.nio.channels.FileChannel
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * Multi-threaded HTTP downloader writing to a SAF [Uri] via random-offset writes.
@@ -58,8 +54,14 @@ class DownloadEngine(
 ) {
 
     private val callsByDownload = ConcurrentHashMap<String, MutableSet<Call>>()
+    private val firmwareUrlProbe = FirmwareUrlProbe(httpClient)
 
     fun cancel(downloadId: String) {
+        // Probe/gate calls share this dispatcher and tag, while body-reading calls are also
+        // tracked below (OkHttp considers them finished once headers have been delivered).
+        (httpClient.dispatcher.queuedCalls() + httpClient.dispatcher.runningCalls())
+            .filter { it.request().tag() == downloadId }
+            .forEach(Call::cancel)
         callsByDownload[downloadId]?.forEach { call ->
             runCatching { call.cancel() }
         }
@@ -67,6 +69,7 @@ class DownloadEngine(
 
     /** Carries the status code so callers can tell "link expired" from a generic transport error. */
     private class ChunkHttpException(val code: Int, message: String) : IOException(message)
+    private class ProbeException(val failure: FirmwareUrlProbeResult.Failure) : IOException(failure.detail)
 
     suspend fun download(
         downloadId: String,
@@ -74,85 +77,85 @@ class DownloadEngine(
         contentResolver: ContentResolver,
         targetUri: Uri,
         expectedSize: Long,
+        expectedMd5: String? = null,
         onProgress: suspend (bytesDownloaded: Long, totalBytes: Long, speedBps: Long) -> Unit,
     ): DownloadOutcome {
-        val urls = UrlHolder(urlProvider) { raw -> resolveGateUrl(downloadId, raw) }
-        val resolvedUrl = try {
-            urls.resolveInitial()
+        val probe = try {
+            resolveDownloadLink(downloadId, urlProvider(), expectedSize, expectedMd5)
+        } catch (e: ProbeException) {
+            val code = e.failure.httpCode
+            return if (code != null) {
+                DownloadOutcome.HttpError(code, e.failure.detail.substringAfter("HTTP $code: ", e.failure.detail))
+            } else DownloadOutcome.IoError(formatThrowable("download probe", targetUri, e))
         } catch (e: IOException) {
-            return DownloadOutcome.IoError(formatThrowable("download gate", targetUri, e))
+            return DownloadOutcome.IoError(formatThrowable("download link", targetUri, e))
         }
-        val probe = probeSize(downloadId, resolvedUrl)
-        val totalSize = probe.totalSize.takeIf { it > 0 } ?: expectedSize
-        validateFirmwareSize(totalSize, expectedSize)?.let { problem ->
-            return DownloadOutcome.IoError(formatMessage("download size probe", targetUri, problem))
-        }
-        if (totalSize <= 0) {
-            return singleThreadedDownload(
-                downloadId, resolvedUrl, contentResolver, targetUri, expectedSize, onProgress,
-            )
+        val totalSize = probe.totalSize
+        val urls = UrlHolder(urlProvider, initialUrl = probe.resolvedUrl) { raw ->
+            resolveDownloadLink(downloadId, raw, totalSize, expectedMd5 ?: probe.md5).resolvedUrl
         }
         if (!probe.acceptsRanges) {
             return singleThreadedDownload(
-                downloadId, resolvedUrl, contentResolver, targetUri, expectedSize, onProgress, knownSize = totalSize,
+                downloadId, urls, contentResolver, targetUri, expectedSize, onProgress, knownSize = totalSize,
             )
         }
 
         val threadCount = fixedThreadCount(totalSize)
         if (threadCount <= 1) {
             return singleThreadedDownload(
-                downloadId, resolvedUrl, contentResolver, targetUri, expectedSize, onProgress, knownSize = totalSize,
+                downloadId, urls, contentResolver, targetUri, expectedSize, onProgress, knownSize = totalSize,
             )
         }
 
         val downloaded = AtomicLong(0L)
         try {
-            val pfd = withContext(workerDispatcher) {
-                contentResolver.openFileDescriptor(targetUri, "rw")
+            withContext(workerDispatcher) {
+                val pfd = contentResolver.openFileDescriptor(targetUri, "rw")
                     ?: throw IOException("cannot open Uri for parallel SAF write")
-            }
-            pfd.use { fd ->
-                FileOutputStream(fd.fileDescriptor).use { output ->
-                    try {
-                        preallocate(output.channel, totalSize)
-                    } catch (e: IOException) {
-                        // Pre-allocation isn't strictly required; positional writes will extend the file.
-                        Log.w(TAG, "Target pre-allocation failed; continuing with positional writes", e)
-                    } catch (e: SecurityException) {
-                        Log.w(TAG, "Target pre-allocation was denied; continuing with positional writes", e)
-                    }
-                    coroutineScope {
-                        // Keep progress reporting independent from the bounded download worker pool.
-                        val ticker = launch(Dispatchers.Default) {
-                            tickProgress(downloaded, totalSize, onProgress)
-                        }
+                pfd.use { fd ->
+                    FileOutputStream(fd.fileDescriptor).use { output ->
+                        output.channel.truncate(0)
                         try {
-                            val chunks = splitChunks(totalSize, threadCount)
-                            chunks.map { chunk ->
-                                async(workerDispatcher) {
-                                    downloadChunkWithRetry(
-                                        downloadId = downloadId,
-                                        urls = urls,
-                                        targetUri = targetUri,
-                                        outputChannel = output.channel,
-                                        chunk = chunk,
-                                        totalSize = totalSize,
-                                        downloaded = downloaded,
-                                    )
-                                }
-                            }.awaitAll()
-                        } finally {
-                            ticker.cancel()
+                            preallocate(output.channel, totalSize)
+                        } catch (e: IOException) {
+                            // Pre-allocation isn't strictly required; positional writes will extend the file.
+                            Log.w(TAG, "Target pre-allocation failed; continuing with positional writes", e)
+                        } catch (e: SecurityException) {
+                            Log.w(TAG, "Target pre-allocation was denied; continuing with positional writes", e)
                         }
-                        val finalBytes = downloaded.get()
-                        // Defensive invariant: every chunk only returns after writing its full range.
-                        if (finalBytes != totalSize) {
-                            throw IOException("Downloaded byte count mismatch: got $finalBytes, expected $totalSize")
+                        coroutineScope {
+                            // Keep progress reporting independent from the bounded download worker pool.
+                            val ticker = launch(Dispatchers.Default) {
+                                tickProgress(downloaded, totalSize, onProgress)
+                            }
+                            try {
+                                val chunks = splitChunks(totalSize, threadCount)
+                                chunks.map { chunk ->
+                                    async(workerDispatcher) {
+                                        downloadChunkWithRetry(
+                                            downloadId = downloadId,
+                                            urls = urls,
+                                            targetUri = targetUri,
+                                            outputChannel = output.channel,
+                                            chunk = chunk,
+                                            totalSize = totalSize,
+                                            downloaded = downloaded,
+                                        )
+                                    }
+                                }.awaitAll()
+                            } finally {
+                                ticker.cancel()
+                            }
+                            val finalBytes = downloaded.get()
+                            // Defensive invariant: every chunk only returns after writing its full range.
+                            if (finalBytes != totalSize) {
+                                throw IOException("Downloaded byte count mismatch: got $finalBytes, expected $totalSize")
+                            }
+                            // Final progress emit so the UI snaps to 100 %.
+                            onProgress(finalBytes, totalSize, 0L)
                         }
-                        // Final progress emit so the UI snaps to 100 %.
-                        onProgress(finalBytes, totalSize, 0L)
+                        output.fd.sync()
                     }
-                    output.fd.sync()
                 }
             }
         } catch (e: IOException) {
@@ -163,53 +166,16 @@ class DownloadEngine(
         return DownloadOutcome.Success(totalSize)
     }
 
-    /**
-     * Turn whatever the provider handed back into a directly fetchable URL: OPPO's
-     * `/downloadCheck` gate needs one anti-leech hop first, everything else is already final.
-     * Throws so the gate's own explanation survives into the failure message.
-     */
-    private suspend fun resolveGateUrl(downloadId: String, url: String): String =
-        if (FirmwareDownloadGate.isOplusDownloadGate(url)) {
-            when (val resolved = FirmwareDownloadGate.resolve(url, httpClient, downloadId)) {
-                is FirmwareDownloadGateResult.Success -> resolved.resolvedUrl
-                is FirmwareDownloadGateResult.Failure -> throw IOException(resolved.detail)
-            }
-        } else {
-            url
-        }
-
-    private suspend fun probeSize(downloadId: String, url: String): SizeProbe = withContext(workerDispatcher) {
-        val builder = Request.Builder()
-            .url(url)
-            .header("Range", "bytes=0-0")
-            .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
-            .header("User-Agent", FIRMWARE_USER_AGENT)
-            .header("Accept", "*/*")
-            .tag(downloadId)
-        val req = builder.build()
-        val call = httpClient.newCall(req)
-        val unregister = registerCall(downloadId, call)
-        try {
-            runCatching {
-                call.await().use { resp ->
-                    when {
-                        resp.code == 206 -> parseContentRange(resp.header("Content-Range"))
-                            ?.let { SizeProbe(it.totalSize, acceptsRanges = true) }
-                            ?: SizeProbe.Unknown
-                        resp.isSuccessful -> SizeProbe(
-                            totalSize = resp.body?.contentLength() ?: -1L,
-                            acceptsRanges = false,
-                        )
-                        else -> SizeProbe.Unknown
-                    }
-                }
-            }.getOrElse {
-                if (it is CancellationException) throw it
-                SizeProbe.Unknown
-            }
-        } finally {
-            unregister()
-        }
+    private suspend fun resolveDownloadLink(
+        downloadId: String,
+        url: String,
+        expectedSize: Long,
+        expectedMd5: String?,
+    ): FirmwareUrlProbeResult.Success = when (
+        val result = firmwareUrlProbe.probe(url, expectedSize, downloadId, expectedMd5)
+    ) {
+        is FirmwareUrlProbeResult.Success -> result
+        is FirmwareUrlProbeResult.Failure -> throw ProbeException(result)
     }
 
     private fun fixedThreadCount(totalSize: Long): Int {
@@ -327,6 +293,7 @@ class DownloadEngine(
                     throw CancellationException("Chunk ${chunk.index} cancelled mid-read").apply { initCause(e) }
                 }
                 lastError = e
+                if (bytesDone > attemptStartBytes) urlRefreshes = 0
                 // "Link expired" is not a stall: the bytes already written are still good and a
                 // fresh URL fetches the rest. Bounded so a genuinely forbidden URL still fails.
                 if (e is ChunkHttpException && e.code in URL_REFRESH_CODES && urlRefreshes < maxUrlRefreshes) {
@@ -359,6 +326,7 @@ class DownloadEngine(
         val builder = Request.Builder()
             .url(url)
             .header("Range", "bytes=$startOffset-${chunk.end}")
+            .header("Accept-Encoding", "identity")
             .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
@@ -420,6 +388,27 @@ class DownloadEngine(
 
     private suspend fun singleThreadedDownload(
         downloadId: String,
+        urls: UrlHolder,
+        contentResolver: ContentResolver,
+        targetUri: Uri,
+        expectedSize: Long,
+        onProgress: suspend (Long, Long, Long) -> Unit,
+        knownSize: Long,
+    ): DownloadOutcome {
+        repeat(3) { attempt ->
+            val (url, generation) = urls.current()
+            val outcome = singleThreadedDownloadOnce(
+                downloadId, url, contentResolver, targetUri, expectedSize, onProgress, knownSize,
+            )
+            if (outcome !is DownloadOutcome.HttpError || outcome.code !in URL_REFRESH_CODES ||
+                attempt == 2 || urls.refresh(generation) == null
+            ) return outcome
+        }
+        error("Unreachable download retry state")
+    }
+
+    private suspend fun singleThreadedDownloadOnce(
+        downloadId: String,
         url: String,
         contentResolver: ContentResolver,
         targetUri: Uri,
@@ -429,6 +418,7 @@ class DownloadEngine(
     ): DownloadOutcome = withContext(workerDispatcher) {
         val builder = Request.Builder()
             .url(url)
+            .header("Accept-Encoding", "identity")
             .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
             .header("User-Agent", FIRMWARE_USER_AGENT)
             .header("Accept", "*/*")
@@ -441,8 +431,11 @@ class DownloadEngine(
                 if (!resp.isSuccessful) {
                     return@withContext DownloadOutcome.HttpError(resp.code, resp.message)
                 }
-                val total = if (knownSize > 0) knownSize
-                else resp.body?.contentLength() ?: -1L
+                val responseSize = resp.body?.contentLength() ?: -1L
+                validateFirmwareSize(responseSize, knownSize)?.let { problem ->
+                    return@withContext DownloadOutcome.IoError(formatMessage("single download size", targetUri, problem))
+                }
+                val total = if (knownSize > 0) knownSize else responseSize
                 validateFirmwareSize(total, expectedSize)?.let { problem ->
                     return@withContext DownloadOutcome.IoError(
                         formatMessage("single download size", targetUri, problem),
@@ -455,6 +448,7 @@ class DownloadEngine(
                         )
                     pfd.use { fd ->
                         FileOutputStream(fd.fileDescriptor).use { fos ->
+                            fos.channel.truncate(0)
                             fos.channel.position(0)
                             val buf = ByteArray(BUFFER_SIZE)
                             var totalRead = 0L
@@ -468,6 +462,11 @@ class DownloadEngine(
                                     currentCoroutineContext().ensureActive()
                                     val n = input.read(buf)
                                     if (n == -1) break
+                                    if (total > 0 && totalRead + n > total) {
+                                        return@withContext DownloadOutcome.IoError(
+                                            formatMessage("single download read", targetUri, "Response exceeded the expected file size"),
+                                        )
+                                    }
                                     fos.write(buf, 0, n)
                                     totalRead += n
                                     val now = System.currentTimeMillis()
@@ -513,7 +512,8 @@ class DownloadEngine(
         withContext(workerDispatcher) {
             runCatching {
                 val md = MessageDigest.getInstance("MD5")
-                contentResolver.openInputStream(uri)?.use { input ->
+                val input = contentResolver.openInputStream(uri) ?: return@withContext null
+                input.use {
                     val buf = ByteArray(BUFFER_SIZE)
                     while (true) {
                         currentCoroutineContext().ensureActive()
@@ -523,19 +523,22 @@ class DownloadEngine(
                     }
                 }
                 md.digest().joinToString("") { "%02x".format(it) }
-            }.getOrNull()
+            }.getOrElse {
+                if (it is CancellationException) throw it
+                null
+            }
         }
 
     private fun registerCall(downloadId: String, call: Call): () -> Unit {
-        val calls = callsByDownload.computeIfAbsent(downloadId) {
-            ConcurrentHashMap.newKeySet()
+        callsByDownload.compute(downloadId) { _, existing ->
+            (existing ?: ConcurrentHashMap.newKeySet()).also { it += call }
         }
-        calls += call
         return {
-            calls -= call
-            if (calls.isEmpty()) {
-                callsByDownload.remove(downloadId, calls)
+            callsByDownload.computeIfPresent(downloadId) { _, calls ->
+                calls -= call
+                calls.takeIf { it.isNotEmpty() }
             }
+            Unit
         }
     }
 
@@ -564,18 +567,12 @@ class DownloadEngine(
         val length: Long get() = end - start + 1
     }
 
-    private data class SizeProbe(val totalSize: Long, val acceptsRanges: Boolean) {
-        companion object {
-            val Unknown = SizeProbe(-1L, acceptsRanges = false)
-        }
-    }
-
     companion object {
         // 64 chunks per large download, with enough download-only workers for two full-speed
         // downloads at once. Extra downloads queue/share this pool without starving app IO.
-        // Statuses that mean "this pre-signed link is no longer valid" rather than "this file
-        // is not available": worth re-resolving the URL, not worth failing the download over.
-        private val URL_REFRESH_CODES = setOf(401, 403, 410)
+        // A CN manual bucket can return 404 while the same package is on the automatic CDN.
+        // Re-resolution includes that fallback and remains bounded for a truly missing file.
+        private val URL_REFRESH_CODES = setOf(401, 403, 404, 410)
         const val CHUNKS_PER_DOWNLOAD = 64
         const val MAX_CONCURRENT_CALLS = CHUNKS_PER_DOWNLOAD * 2
         private const val BUFFER_SIZE = 256 * 1024
@@ -594,27 +591,6 @@ internal fun formatMessage(stage: String, uri: Uri, detail: String): String =
     "Stage: $stage\n" +
         "Uri: ${uri.scheme ?: "unknown"}://${uri.authority ?: "unknown"}\n" +
         detail
-
-private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
-    enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-            if (!cont.isActive) return
-            if (call.isCanceled()) {
-                cont.resumeWithException(downloadCanceled(e))
-            } else {
-                cont.resumeWithException(e)
-            }
-        }
-        override fun onResponse(call: Call, response: Response) {
-            if (cont.isActive) {
-                cont.resume(response)
-            } else {
-                response.close()
-            }
-        }
-    })
-    cont.invokeOnCancellation { runCatching { cancel() } }
-}
 
 private fun downloadCanceled(cause: Throwable): CancellationException =
     CancellationException("Download canceled").apply { initCause(cause) }

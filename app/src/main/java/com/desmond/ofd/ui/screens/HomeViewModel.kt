@@ -38,7 +38,6 @@ import com.desmond.ofd.diag.DeviceDiagnostics
 import com.desmond.ofd.diag.DownloadDiagnostics
 import com.desmond.ofd.diag.hostOf
 import com.desmond.ofd.diag.redactSafUri
-import com.desmond.ofd.firmware.FirmwareDownloadGate
 import com.desmond.ofd.firmware.FirmwareSource
 import com.desmond.ofd.firmware.FirmwareUrlProbe
 import com.desmond.ofd.firmware.firmwareSourceFor
@@ -57,7 +56,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
 
 sealed interface BackendMessage {
     data class Resource(
@@ -101,6 +99,12 @@ sealed interface DownloadStart {
     data class Failed(val reason: String) : DownloadStart
 }
 
+internal data class PendingDownload(
+    val outcome: BackendOutcome.Success,
+    val displayName: String,
+    val check: CheckDiagnostics,
+)
+
 sealed interface HomeUiState {
     data object Idle : HomeUiState
     data object Loading : HomeUiState
@@ -132,11 +136,17 @@ class HomeViewModel(
     private val danielspringerSource: DanielspringerSource = DanielspringerSource(application),
     private val mirrorClient: MirrorClient = MirrorClient(application),
     private val getSnapshot: () -> DeviceSnapshot = { DeviceProps.snapshot(useShellFallback = true) },
+    private val enqueueDownload: (Application, DownloadParams) -> String? = { app, params ->
+        DownloadCoordinator.start(app, params)
+    },
 ) : AndroidViewModel(application) {
 
     private val _state = MutableStateFlow<HomeUiState>(HomeUiState.Idle)
     val state: StateFlow<HomeUiState> = _state.asStateFlow()
     private val firmwareUrlProbe = FirmwareUrlProbe()
+    // The document picker can recreate the activity. Keep its selection with the ViewModel,
+    // including the check that produced it, so the result and its diagnostics stay together.
+    internal var pendingDownload: PendingDownload? = null
 
     /**
      * Tracks the in-flight check coroutine so [reset] can cancel it before it overwrites the
@@ -168,48 +178,41 @@ class HomeViewModel(
     }
 
     /**
-     * Begin a download. Distinguishes the three outcomes the UI must tell apart: it started, an
-     * equivalent download is already running, or the download URL could not be resolved (e.g. the
-     * mirror's token-gated proxy was rejected) — the latter used to masquerade as "already
-     * running", which is why a failed mirror download looked like a no-op.
+     * Start foreground work immediately after the picker returns. Token exchange and link
+     * verification run in that job, so leaving the activity during a slow request cannot turn
+     * the later service launch into a forbidden background start. Resolution errors appear on
+     * the download card with the original check's diagnostics.
      */
-    suspend fun startDownload(
+    fun startDownload(
         targetUri: Uri,
         outcome: BackendOutcome.Success,
         displayName: String,
+        check: CheckDiagnostics? = (_state.value as? HomeUiState.Result)?.let(::checkDiagnostics),
     ): DownloadStart {
         val provider = urlProviderFor(outcome.source)
-        // Call the provider once up front. For a gate or a direct link this is free, but for the
-        // mirror it performs the token exchange — so a rejection becomes an immediate message
-        // instead of a download card that fails a moment later.
-        val first = try {
-            provider()
-        } catch (e: IOException) {
-            return DownloadStart.Failed(e.message ?: "could not resolve a download link")
-        }
-        if (first.isBlank()) return DownloadStart.Failed("no download URL available for this result")
         val params = DownloadParams(
-            urlProvider = firstThenRefresh(first, provider),
+            urlProvider = provider,
             targetUri = targetUri,
             displayName = displayName,
             expectedSize = outcome.sizeBytes,
             expectedMd5 = outcome.md5,
-            diagnostics = (_state.value as? HomeUiState.Result)?.let { result ->
+            diagnostics = check?.let { captured ->
                 DownloadDiagnostics(
-                    check = checkDiagnostics(result),
-                    // The host of the link we are about to fetch. For the mirror this is already
-                    // OPPO's CDN, because the proxy hop is resolved before the download starts —
-                    // so naming it reveals nothing about the secondary source.
-                    sourceLabel = "${result.winner?.let(::backendLabel) ?: "?"} / ${hostOf(first) ?: "?"}",
+                    check = captured,
+                    sourceLabel = listOfNotNull(captured.winner, hostOf(outcome.displayUrl)).joinToString(" / "),
                     expectedSize = outcome.sizeBytes,
                     expectedMd5 = outcome.md5,
                     targetLabel = redactSafUri(targetUri.toString()),
                 )
             },
         )
-        return DownloadCoordinator.start(getApplication(), params)
-            ?.let { DownloadStart.Started(it) }
-            ?: DownloadStart.AlreadyRunning
+        return try {
+            enqueueDownload(getApplication(), params)
+                ?.let { DownloadStart.Started(it) }
+                ?: DownloadStart.AlreadyRunning
+        } catch (e: RuntimeException) {
+            DownloadStart.Failed(e.message ?: "could not start the download service")
+        }
     }
 
     /**
@@ -222,10 +225,14 @@ class HomeViewModel(
      * Returns null when no shareable link could be produced.
      */
     suspend fun resolveShareableUrl(outcome: BackendOutcome.Success): String? {
-        val raw = runCatching { urlProviderFor(outcome.source)() }.getOrNull() ?: return null
+        val raw = try {
+            urlProviderFor(outcome.source)()
+        } catch (_: IOException) {
+            return null
+        }
         // A gate URL is useless outside the app (it needs the anti-leech header), so resolve it
         // through to the CDN link that anything else can actually fetch.
-        return when (val probe = firmwareUrlProbe.probe(raw)) {
+        return when (val probe = firmwareUrlProbe.probe(raw, outcome.sizeBytes, expectedMd5 = outcome.md5)) {
             is FirmwareUrlProbeResult.Success -> probe.resolvedUrl
             is FirmwareUrlProbeResult.Failure -> null
         }
@@ -416,7 +423,7 @@ class HomeViewModel(
     private suspend fun preflightSelectedRealmeOta(selected: RealmeOtaDownloadSelection.Success): BackendOutcome {
         var lastFailure: FirmwareUrlProbeResult.Failure? = null
         for (url in selected.downloadUrls) {
-            when (val probe = firmwareUrlProbe.probe(url, expectedSize = selected.sizeBytes)) {
+            when (val probe = firmwareUrlProbe.probe(url, expectedSize = selected.sizeBytes, expectedMd5 = selected.md5)) {
                 // Keep the URL that actually worked, not the resolved one: it is the gate, and
                 // re-hitting it is what lets the download survive its own signature expiring.
                 is FirmwareUrlProbeResult.Success -> return BackendOutcome.Success(
@@ -546,15 +553,6 @@ class HomeViewModel(
     companion object {
         private const val AUTO_SNAPSHOT_ATTEMPTS = 3
         private const val AUTO_SNAPSHOT_RETRY_DELAY_MS = 150L
-
-        /**
-         * A URL provider that hands back [first] once — it was just resolved, so resolving again
-         * straight away would waste a request — then calls [refresh] for every later request.
-         */
-        private fun firstThenRefresh(first: String, refresh: suspend () -> String): DownloadUrlProvider {
-            val used = AtomicBoolean(false)
-            return { if (used.compareAndSet(false, true)) first else refresh() }
-        }
 
         private fun backendMessage(@StringRes resId: Int, vararg args: String): BackendMessage =
             BackendMessage.Resource(resId, args.toList())

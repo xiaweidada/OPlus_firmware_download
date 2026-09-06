@@ -1,5 +1,17 @@
 package com.desmond.ofd.firmware
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
+/** Accepted firmware destinations for HTML results and credential-free mirror redirects. */
+internal fun isFirmwareDownloadUrl(candidate: String?): Boolean {
+    val url = candidate?.trim()?.toHttpUrlOrNull() ?: return false
+    if (url.scheme != "https" || url.username.isNotEmpty() || url.password.isNotEmpty()) return false
+    val allowed = listOf("allawnfs.com", "allawnofs.com", "allawntech.com", "allawnos.com", "googleapis.com", "gvt1.com")
+    if (allowed.none { url.host == it || url.host.endsWith(".$it") }) return false
+    val path = url.encodedPath.lowercase()
+    return path.endsWith(".zip") || path.endsWith("/downloadcheck")
+}
+
 /**
  * Where a firmware package is fetched from — expressed as a *durable* handle rather than a URL.
  *

@@ -3,23 +3,21 @@ package com.desmond.ofd.backend.danielspringer
 import com.desmond.ofd.backend.realmeota.data.Region
 import com.desmond.ofd.firmware.FirmwareUrlProbe
 import com.desmond.ofd.firmware.FirmwareUrlProbeResult
+import com.desmond.ofd.firmware.firmwareSourceFor
 import com.desmond.ofd.http.BROWSER_USER_AGENT
+import com.desmond.ofd.http.await
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.Callback
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /**
  * Live URL fetch from danielspringer.at. Each call creates its own session
@@ -28,19 +26,25 @@ import kotlin.coroutines.resumeWithException
  * Two-step flow per session:
  *   1. GET `/index.php?view=ota` to seed `PHPSESSID`.
  *   2. POST `device=...&region=...&version_index=...` (auto-follows the 302 → result page),
- *      then hand the HTML to [ResultParser] and probe the link it finds for size + md5.
+ *      then parse the HTML. On the lazy layout, POST its session fields to `resolve_json`.
+ *   3. Probe the resulting file, including the official CN CDN fallback when necessary.
  *
  * This is the *fallback* path. The site's JSON API is preferred — see [DanielspringerApi] — and
  * this exists for the rare model the API's catalog misses. Scraping is also what the site rate
  * limits, so callers must go through [DanielspringerSource], which guards it with a breaker.
  */
-class DanielspringerClient {
+class DanielspringerClient(
+    private val httpClient: OkHttpClient = defaultClient(),
+    private val baseUrl: String = BASE_URL,
+) {
+    private val formUrl = "$baseUrl/index.php?view=ota"
+    private val json = Json { ignoreUnknownKeys = true }
 
     /** Fetch and parse the device → region → versions catalog. Cached by caller, not here. */
     suspend fun fetchCatalog(): DanielspringerCatalog = withContext(Dispatchers.IO) {
         val client = newScrapeClient()
         val req = Request.Builder()
-            .url(FORM_URL)
+            .url(formUrl)
             .header("User-Agent", BROWSER_USER_AGENT)
             .build()
         val html = client.newCall(req).await().use { resp ->
@@ -62,8 +66,10 @@ class DanielspringerClient {
         val client = newScrapeClient()
 
         // 1. seed PHPSESSID
-        client.newCall(Request.Builder().url(FORM_URL).header("User-Agent", BROWSER_USER_AGENT).build())
-            .await().close()
+        client.newCall(Request.Builder().url(formUrl).header("User-Agent", BROWSER_USER_AGENT).build())
+            .await().use { response ->
+                if (!response.isSuccessful) throw DanielspringerHttpException(response.code)
+            }
 
         // 2. POST + auto-follow 302 → result page
         val body = FormBody.Builder()
@@ -72,11 +78,11 @@ class DanielspringerClient {
             .add("version_index", versionIndex.toString())
             .build()
         val postReq = Request.Builder()
-            .url(FORM_URL)  // fragment stripped by OkHttp anyway; kept plain for clarity
+            .url(formUrl)
             .post(body)
             .header("User-Agent", BROWSER_USER_AGENT)
-            .header("Origin", BASE_URL)
-            .header("Referer", FORM_URL)
+            .header("Origin", baseUrl)
+            .header("Referer", formUrl)
             .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
             .build()
         val resultHtml = client.newCall(postReq).await().use { resp ->
@@ -85,33 +91,54 @@ class DanielspringerClient {
         }
 
         val parsed = ResultParser.parseResultHtml(resultHtml, versionIndex)
-        val downloadUrl = parsed.downloadUrl
-            ?: error("Site returned no download URL — region/version may be empty for this device.")
+        val downloadUrl = parsed.downloadUrl ?: parsed.lazyLink?.let { resolveLazyLink(client, it) }
+            ?: throw IOException("Site returned no download URL — region/version may be empty for this device.")
         val displayName = parsed.displayName ?: "(unknown)"
-        val expires = ResultParser.parseExpiresEpochSeconds(downloadUrl) ?: 0L
 
         // 3. Range GET for accurate size + md5. AWS pre-signed URLs are sometimes signed
         //    only for GET; HEAD then returns 403 with a tiny error-page Content-Length
         //    that gets misread as the real file size. Range bytes=0-0 always yields 206
         //    Partial Content with `Content-Range: bytes 0-0/<TOTAL>`.
-        val (size, md5) = when (val probe = FirmwareUrlProbe(client).probe(downloadUrl)) {
-            is FirmwareUrlProbeResult.Success -> probe.totalSize to probe.md5
+        val resolved = when (val probe = FirmwareUrlProbe(client).probe(downloadUrl, expectedMd5 = parsed.md5)) {
+            is FirmwareUrlProbeResult.Success -> probe
             is FirmwareUrlProbeResult.Failure -> {
                 throw IOException("Download URL probe failed: ${probe.detail}")
             }
         }
 
         DanielspringerResult(
-            downloadUrl = downloadUrl,
-            sizeBytes = size,
-            md5 = md5,
+            downloadUrl = resolved.resolvedUrl,
+            sizeBytes = resolved.totalSize,
+            md5 = parsed.md5 ?: resolved.md5,
             displayName = displayName,
             realOtaVersion = parsed.realOtaVersion,
             securityPatch = parsed.securityPatch,
             manualOnly = parsed.manualOnly,
-            expiresAtEpochSeconds = expires,
+            expiresAtEpochSeconds = ResultParser.parseExpiresEpochSeconds(resolved.resolvedUrl) ?: 0L,
+            source = firmwareSourceFor(downloadUrl),
         )
     }
+
+    private suspend fun resolveLazyLink(client: OkHttpClient, session: ResultParser.LazyLink): String {
+        val body = FormBody.Builder().add("k", session.selectionKey).add("csrf", session.csrf).build()
+        val request = Request.Builder().url("$formUrl&ota_action=resolve_json")
+            .post(body).header("User-Agent", BROWSER_USER_AGENT)
+            .header("Origin", baseUrl).header("Referer", formUrl).header("Accept", "application/json")
+            .build()
+        return client.newCall(request).await().use { response ->
+            if (!response.isSuccessful) throw DanielspringerHttpException(response.code)
+            val result = runCatching {
+                json.decodeFromString<LazyResolution>(response.body?.string().orEmpty())
+            }.getOrElse { throw IOException("Site returned an invalid link response", it) }
+            if (!result.ok || !ResultParser.looksLikeFirmwareUrl(result.url)) {
+                throw IOException("Site could not prepare a firmware download link")
+            }
+            result.url
+        }
+    }
+
+    @Serializable
+    private data class LazyResolution(val ok: Boolean = false, val url: String = "")
 
     /** Convenience wrapper: resolve via realme-ota's [Region] + a model code. */
     suspend fun fetchLatestUrlForModel(
@@ -124,12 +151,7 @@ class DanielspringerClient {
         return fetchLatestUrl(siteDevice, siteRegion, versionIndex)
     }
 
-    private fun newScrapeClient(): OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
+    private fun newScrapeClient(): OkHttpClient = httpClient.newBuilder()
         .cookieJar(SimpleCookieJar())
         .build()
 
@@ -140,6 +162,12 @@ class DanielspringerClient {
         // The form's own action gained a fragment when the page moved to JS comboboxes. Posting
         // to the declared action keeps us aligned with whatever the page expects.
         const val FORM_ACTION_URL = "$BASE_URL/index.php?view=ota#ota-downloader"
+
+        private fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
     }
 }
 
@@ -163,18 +191,5 @@ private class SimpleCookieJar : CookieJar {
 
     @Synchronized
     override fun loadForRequest(url: HttpUrl): List<Cookie> =
-        store.values.filter { it.matches(url) }
-}
-
-/** Bridges OkHttp's enqueue() to a suspend function. */
-private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
-    enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-            if (cont.isActive) cont.resumeWithException(e)
-        }
-        override fun onResponse(call: Call, response: Response) {
-            if (cont.isActive) cont.resume(response)
-        }
-    })
-    cont.invokeOnCancellation { runCatching { cancel() } }
+        store.values.filter { it.expiresAt > System.currentTimeMillis() && it.matches(url) }
 }

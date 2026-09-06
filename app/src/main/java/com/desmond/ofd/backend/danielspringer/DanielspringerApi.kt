@@ -3,6 +3,7 @@ package com.desmond.ofd.backend.danielspringer
 import com.desmond.ofd.backend.VersionResolver
 import com.desmond.ofd.backend.realmeota.data.Region
 import com.desmond.ofd.http.BROWSER_USER_AGENT
+import com.desmond.ofd.http.await
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -30,10 +31,11 @@ data class DanielspringerRelease(
     @SerialName("security_patch") val securityPatch: String? = null,
     /**
      * Unresolved source URL from the site's catalog — in practice an OPPO `/downloadCheck` gate.
-     * The API explicitly does not resolve redirects or mint temporary links, so size and md5
-     * have to come from probing this ourselves.
+     * The API does not resolve redirects or mint temporary links.
      */
     @SerialName("source_url") val sourceUrl: String = "",
+    @SerialName("size") val sizeBytes: Long? = null,
+    val md5: String? = null,
     @SerialName("is_latest") val isLatest: Boolean = false,
 )
 
@@ -92,13 +94,15 @@ internal class DanielspringerApi(
         }
         val parsed = runCatching { json.decodeFromString<DanielspringerApiResponse>(body) }.getOrNull()
             ?: return DanielspringerApiResult.Unusable("API response was not valid JSON")
-        val releases = parsed.releases.filter { it.version.isNotBlank() && it.sourceUrl.isNotBlank() }
+        val releases = parsed.releases.filter {
+            it.model.equals(model.trim(), ignoreCase = true) && it.version.isNotBlank() && it.sourceUrl.isNotBlank()
+        }
         if (releases.isEmpty()) {
             return DanielspringerApiResult.Unusable("$model is not in the danielspringer catalog")
         }
-        val preferred = releases.firstOrNull { it.region.equals(region.toSiteRegion(), ignoreCase = true) }
-            ?: releases.maxWithOrNull { a, b -> VersionResolver.compare(a.version, b.version) }
-            ?: releases.first()
+        val matchingRegion = releases.filter { it.region.equals(region.toSiteRegion(), ignoreCase = true) }
+        val preferred = (matchingRegion.ifEmpty { releases })
+            .maxWith { a, b -> VersionResolver.compare(a.version, b.version) }
         return DanielspringerApiResult.Found(preferred)
     }
 
@@ -115,7 +119,7 @@ internal class DanielspringerApi(
             .header("Accept", "application/json")
         cached?.let { builder.header("If-None-Match", it.etag) }
         try {
-            httpClient.newCall(builder.build()).execute().use { resp ->
+            httpClient.newCall(builder.build()).await().use { resp ->
                 when {
                     // A 304 has no body. Returning that empty string would look like a parse
                     // failure, which would classify as Unusable and send us to the scraper — the
@@ -125,8 +129,8 @@ internal class DanielspringerApi(
                         ?: Fetched.Failed(DanielspringerApiResult.Unusable("304 with nothing cached"))
 
                     // Explicit back-off. Scraping now is what turns a soft limit into a hard ban.
-                    resp.code == 429 -> Fetched.Failed(
-                        DanielspringerApiResult.Unreachable("rate limited by the site (HTTP 429)"),
+                    resp.code in setOf(401, 403, 408, 429) || resp.code in 500..599 -> Fetched.Failed(
+                        DanielspringerApiResult.Unreachable("site unavailable (HTTP ${resp.code})"),
                     )
 
                     resp.isSuccessful -> {
@@ -134,7 +138,8 @@ internal class DanielspringerApi(
                         if (text.isBlank()) {
                             Fetched.Failed(DanielspringerApiResult.Unusable("API returned an empty body"))
                         } else {
-                            resp.header("ETag")?.let { cache[path] = CachedResponse(it, text) }
+                            val etag = resp.header("ETag")
+                            if (etag != null) cache[path] = CachedResponse(etag, text) else cache.remove(path)
                             Fetched.Body(text)
                         }
                     }

@@ -64,18 +64,21 @@ class DanielspringerSource internal constructor(
         }
 
     /**
-     * The API gives a catalog URL but neither size nor md5 — it explicitly does not resolve
-     * redirects — so the gate is probed here for both, which doubles as a liveness check.
+     * Resolve the catalog URL and check liveness and identity. Size and MD5 are optional in
+     * the API; retain its checksum even on CDN edges that don't expose a checksum header.
      */
     private suspend fun resolveApiRelease(release: DanielspringerRelease): DanielspringerLookup =
-        when (val probed = probe.probe(release.sourceUrl)) {
+        when (val probed = probe.probe(
+            release.sourceUrl,
+            expectedSize = release.sizeBytes?.takeIf { it > 0 } ?: -1L,
+            expectedMd5 = release.md5,
+        )) {
             is FirmwareUrlProbeResult.Success -> DanielspringerLookup.Found(
                 versionName = release.version,
                 source = firmwareSourceFor(release.sourceUrl),
                 displayUrl = probed.resolvedUrl,
                 sizeBytes = probed.totalSize,
-                // Only OPPO's CN edge exposes a package md5; elsewhere there is nothing to verify against.
-                md5 = probed.md5,
+                md5 = release.md5?.trim()?.takeIf { it.isNotBlank() } ?: probed.md5,
                 securityPatch = release.securityPatch?.takeIf { it.isNotBlank() },
                 realOtaVersion = release.otaVersion.takeIf { it.isNotBlank() },
                 expiresAtEpochSeconds = parseFirmwareUrlExpiresEpochSeconds(probed.resolvedUrl),
@@ -103,9 +106,9 @@ class DanielspringerSource internal constructor(
             DanielspringerLookup.Found(
                 // displayName is the comparable dotted-numeric form VersionResolver expects.
                 versionName = res.displayName,
-                // A scraped link is terminal: renewing it would mean scraping again, which is
-                // precisely what the rate limiter punishes.
-                source = firmwareSourceFor(res.downloadUrl),
+                // Preserve a gate when supplied; a terminal scraped link cannot be renewed
+                // without another visit to the site.
+                source = res.source,
                 displayUrl = res.downloadUrl,
                 sizeBytes = res.sizeBytes,
                 md5 = res.md5,

@@ -1,9 +1,10 @@
 package com.desmond.ofd.backend.danielspringer
 
 import com.desmond.ofd.firmware.parseFirmwareUrlExpiresEpochSeconds
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import com.desmond.ofd.firmware.isFirmwareDownloadUrl
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
+import org.jsoup.parser.Parser
 
 /**
  * Parses the page danielspringer returns after the OTA form is submitted.
@@ -36,17 +37,12 @@ object ResultParser {
          * the first user to hit a changed page reports back the shape rather than just "failed".
          */
         val trace: List<String> = emptyList(),
+        val lazyLink: LazyLink? = null,
+        val md5: String? = null,
     )
 
-    /** Hosts OPPO and Google actually serve firmware from. Anything else is not a download link. */
-    private val ALLOWED_HOST_SUFFIXES = listOf(
-        "allawnfs.com",    // CN CDN
-        "allawnofs.com",   // EU / GL / IN CDN
-        "allawntech.com",  // CN downloadCheck gate
-        "allawnos.com",    // EU / GL / IN downloadCheck gate
-        "googleapis.com",  // some NA builds
-        "gvt1.com",
-    )
+    /** Session fields used by the website's on-demand link resolver; never include in diagnostics. */
+    class LazyLink(val selectionKey: String, val csrf: String)
 
     fun parseResultHtml(html: String, versionIndex: Int): Parsed {
         val doc = Jsoup.parse(html)
@@ -55,6 +51,9 @@ object ResultParser {
         val downloadUrl = extractUrl(doc, html, trace)
         val displayName = extractDisplayName(doc, versionIndex, trace)
         val chips = extractChips(doc)
+        val resultBox = doc.selectFirst("#resultBox")
+        val selectionKey = resultBox?.attr("data-ota-key").orEmpty()
+        val csrf = resultBox?.attr("data-csrf").orEmpty()
 
         return Parsed(
             downloadUrl = downloadUrl,
@@ -68,6 +67,8 @@ object ResultParser {
                 ?: SEC_PATCH_RE.find(doc.text())?.groupValues?.get(1),
             manualOnly = chips.any { it.equals("manual-only", ignoreCase = true) },
             trace = trace,
+            lazyLink = if (selectionKey.isNotBlank() && csrf.isNotBlank()) LazyLink(selectionKey, csrf) else null,
+            md5 = MD5_RE.find(resultBox?.text() ?: doc.text())?.groupValues?.get(1),
         )
     }
 
@@ -76,14 +77,7 @@ object ResultParser {
      * know serves firmware, and looks like either a package or the anti-leech gate. Without this
      * every strategy below would happily return the site's own stylesheet or a donate link.
      */
-    internal fun looksLikeFirmwareUrl(candidate: String?): Boolean {
-        val url = candidate?.trim()?.takeIf { it.isNotEmpty() }?.toHttpUrlOrNull() ?: return false
-        if (url.scheme != "https") return false
-        val host = url.host.lowercase()
-        if (ALLOWED_HOST_SUFFIXES.none { host == it || host.endsWith(".$it") }) return false
-        val path = url.encodedPath.lowercase()
-        return path.endsWith(".zip") || path.endsWith("/downloadcheck") || path.contains("/component-ota/")
-    }
+    internal fun looksLikeFirmwareUrl(candidate: String?): Boolean = isFirmwareDownloadUrl(candidate)
 
     private fun extractUrl(doc: Document, html: String, trace: MutableList<String>): String? {
         // 1. Canonical: the result box carries the URL as a data attribute in every layout so far.
@@ -116,7 +110,7 @@ object ResultParser {
 
         // 4. Raw text scan, for a URL that never made it into an attribute at all.
         URL_IN_TEXT_RE.findAll(html)
-            .map { it.value.trimEnd('"', '\'', '<', ')', ',', ';') }
+            .map { Parser.unescapeEntities(it.value.trimEnd('"', '\'', '<', ')', ',', ';'), false) }
             .firstOrNull(::looksLikeFirmwareUrl)
             ?.let {
                 trace += "url: raw text scan"
@@ -171,7 +165,8 @@ object ResultParser {
 
     private val OTA_TIMESTAMP_RE = Regex("""_\d{12}\b""")
     private val OTA_TIMESTAMP_TEXT_RE = Regex("""\b[A-Z0-9]+_\d{2}\.[A-Z]\.\d+_\d+_\d{12}\b""")
-    private val SEC_PATCH_RE = Regex("""Sec\.?\s*Patch:?\s*(\d{4}-\d{2}-\d{2})""", RegexOption.IGNORE_CASE)
+    private val SEC_PATCH_RE = Regex("""(?:Sec\.?\s*)?Patch:?\s*(\d{4}-\d{2}-\d{2})""", RegexOption.IGNORE_CASE)
+    private val MD5_RE = Regex("""\bMD5\s*:?\s*([a-f0-9]{32})\b""", RegexOption.IGNORE_CASE)
     private val VERSION_NAME_RE = Regex("""\b[A-Z]{2,3}\d{3,5}_\d+(?:\.\d+)+\([A-Z]{2}\d{2}\)""")
     private val URL_IN_TEXT_RE = Regex("""https://[^\s"'<>\\]+""")
 }

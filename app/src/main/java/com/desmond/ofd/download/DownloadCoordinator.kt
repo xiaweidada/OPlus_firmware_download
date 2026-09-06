@@ -6,6 +6,7 @@ import android.net.Uri
 import android.provider.DocumentsContract
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -91,6 +92,7 @@ object DownloadCoordinator {
      * The signed download URL changes on every check, so URL-based dedup is useless — we key
      * on firmware identity instead.
      */
+    @Synchronized
     fun start(context: Context, params: DownloadParams): String? {
         val collidingId = activeParams.entries.firstOrNull { (_, active) ->
             sameFirmware(active, params) || active.targetUri == params.targetUri
@@ -103,9 +105,15 @@ object DownloadCoordinator {
         cancelledIds.remove(id)
         activeParams[id] = params
         update(id, DownloadState.Active(params, 0L, params.expectedSize, 0L))
-        startService(app)
+        try {
+            startService(app)
+        } catch (e: RuntimeException) {
+            activeParams.remove(id)
+            remove(id)
+            throw e
+        }
 
-        coroutineJobs[id] = scope.launch {
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
                 runWithRetries(
                     context = app,
@@ -135,10 +143,13 @@ object DownloadCoordinator {
                 cancelledIds.remove(id)
             }
         }
+        coroutineJobs[id] = job
+        job.start()
         return id
     }
 
     /** Cancel an in-flight download by id. */
+    @Synchronized
     fun cancel(id: String) {
         val job = coroutineJobs[id]
         val params = activeParams[id] ?: activeParamsOf(_jobs.value[id]?.state)
@@ -180,6 +191,7 @@ object DownloadCoordinator {
             contentResolver = context.contentResolver,
             targetUri = params.targetUri,
             expectedSize = params.expectedSize,
+            expectedMd5 = params.expectedMd5,
             onProgress = { bytes, total, bps ->
                 val effectiveTotal = if (total > 0) total else params.expectedSize
                 update(id, DownloadState.Active(params, bytes, effectiveTotal, bps))
@@ -255,11 +267,10 @@ object DownloadCoordinator {
                 runWithRetries(context, id, params, md5RetriesLeft, networkRetriesLeft - 1)
             }
             is DownloadEngine.DownloadOutcome.HttpError -> {
-                // 401/403/410 here mean the pre-signed link died. Retrying calls the URL
-                // provider again, which mints a fresh one — so these are transient, not fatal.
+                // Refresh stale links and retry a missing CDN object through the shared resolver.
                 val transient = outcome.code in 500..599 ||
                     outcome.code == 408 || outcome.code == 429 ||
-                    outcome.code == 401 || outcome.code == 403 || outcome.code == 410
+                    outcome.code == 401 || outcome.code == 403 || outcome.code == 404 || outcome.code == 410
                 val active = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]?.isActive == true
                 if (!active) {
                     throw CancellationException("Download cancelled")

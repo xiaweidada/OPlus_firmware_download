@@ -3,17 +3,14 @@ package com.desmond.ofd.firmware
 import com.desmond.ofd.http.FIRMWARE_ID_HEADER
 import com.desmond.ofd.http.FIRMWARE_ID_VALUE
 import com.desmond.ofd.http.FIRMWARE_USER_AGENT
+import com.desmond.ofd.http.await
 import com.desmond.ofd.http.parseContentRange
-import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.Call
-import okhttp3.Callback
+import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal class FirmwareUrlProbe(
     private val httpClient: OkHttpClient = defaultHttpClient(),
@@ -22,6 +19,7 @@ internal class FirmwareUrlProbe(
         url: String,
         expectedSize: Long = -1L,
         tag: Any? = null,
+        expectedMd5: String? = null,
     ): FirmwareUrlProbeResult {
         return try {
             val resolvedUrl = when (val gate = FirmwareDownloadGate.resolve(url, httpClient, tag)) {
@@ -33,18 +31,13 @@ internal class FirmwareUrlProbe(
                     rejectionCode = gate.rejectionCode,
                 )
             }
-            val builder = Request.Builder()
-                .url(resolvedUrl)
-                .header("Range", "bytes=0-0")
-                .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
-                .header("User-Agent", FIRMWARE_USER_AGENT)
-                .header("Accept", "*/*")
-            if (tag != null) builder.tag(tag)
-
-            val call = httpClient.newCall(builder.build())
-            call.await().use { resp ->
-                parseResponse(resp, expectedSize, resolvedUrl)
-            }
+            val (result, cdnUrl) = probeCdn(resolvedUrl, expectedSize, expectedMd5, tag)
+            if (result !is FirmwareUrlProbeResult.Failure || result.httpCode != 404) return result
+            val fallback = automaticCdnFallback(cdnUrl) ?: return result
+            // Some CN full packages have left the manual bucket but still exist on the
+            // automatic CDN. Keep the exact object path and signature, and verify that response
+            // too. A second 404 ends the attempt; it must never become a successful size probe.
+            probeCdn(fallback.toString(), expectedSize, expectedMd5, tag).first
         } catch (e: IOException) {
             FirmwareUrlProbeResult.Failure(
                 detail = "Network probe failed: ${e.message ?: e::class.simpleName ?: "IOException"}",
@@ -58,12 +51,43 @@ internal class FirmwareUrlProbe(
         }
     }
 
-    private fun parseResponse(resp: Response, expectedSize: Long, resolvedUrl: String): FirmwareUrlProbeResult {
+    private suspend fun probeCdn(
+        url: String,
+        expectedSize: Long,
+        expectedMd5: String?,
+        tag: Any?,
+    ): Pair<FirmwareUrlProbeResult, HttpUrl> {
+        val builder = Request.Builder()
+            .url(url)
+            .header("Range", "bytes=0-0")
+            .header("Accept-Encoding", "identity")
+            .header(FIRMWARE_ID_HEADER, FIRMWARE_ID_VALUE)
+            .header("User-Agent", FIRMWARE_USER_AGENT)
+            .header("Accept", "*/*")
+        if (tag != null) builder.tag(tag)
+        return httpClient.newCall(builder.build()).await().use { response ->
+            parseResponse(response, expectedSize, expectedMd5) to response.request.url
+        }
+    }
+
+    private fun automaticCdnFallback(url: HttpUrl): HttpUrl? {
+        if (url.scheme != "https" || url.port != 443 ||
+            url.host != "gauss-compota-c-cn.allawnfs.com" ||
+            "component-ota" !in url.pathSegments || !url.encodedPath.endsWith(".zip")
+        ) return null
+        return url.newBuilder().host("gauss-compotaauto-c-cn.allawnfs.com").build()
+    }
+
+    private fun parseResponse(resp: Response, expectedSize: Long, expectedMd5: String?): FirmwareUrlProbeResult {
         var rejectionCode: String? = null
         val totalSize = when {
             resp.code == 206 -> {
-                parseContentRange(resp.header("Content-Range"))?.totalSize
+                val range = parseContentRange(resp.header("Content-Range"))
                     ?: return failure("Invalid Content-Range: ${resp.header("Content-Range") ?: "(missing)"}")
+                if (range.start != 0L || range.end != 0L) {
+                    return failure("Unexpected Content-Range for bytes=0-0: ${resp.header("Content-Range")}")
+                }
+                range.totalSize
             }
             resp.isSuccessful -> {
                 val cl = resp.header("Content-Length")?.toLongOrNull()
@@ -99,11 +123,15 @@ internal class FirmwareUrlProbe(
             )
         }
 
+        val md5 = resp.header("x-amz-meta-filemd5")?.trim()?.takeIf { it.isNotEmpty() }
+        if (!expectedMd5.isNullOrBlank() && md5 != null && !md5.equals(expectedMd5.trim(), ignoreCase = true)) {
+            return FirmwareUrlProbeResult.Failure("MD5 mismatch between catalog and CDN", retryable = false)
+        }
         return FirmwareUrlProbeResult.Success(
             totalSize = totalSize,
             acceptsRanges = resp.code == 206,
-            md5 = resp.header("x-amz-meta-filemd5"),
-            resolvedUrl = resolvedUrl,
+            md5 = md5,
+            resolvedUrl = resp.request.url.toString(),
         )
     }
 
@@ -142,21 +170,4 @@ internal sealed interface FirmwareUrlProbeResult {
         /** OPPO `downloadCheck` `responseCode` when the body looks like an anti-leech rejection. */
         val rejectionCode: String? = null,
     ) : FirmwareUrlProbeResult
-}
-
-private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
-    enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-            if (cont.isActive) cont.resumeWithException(e)
-        }
-
-        override fun onResponse(call: Call, response: Response) {
-            if (cont.isActive) {
-                cont.resume(response)
-            } else {
-                response.close()
-            }
-        }
-    })
-    cont.invokeOnCancellation { runCatching { cancel() } }
 }

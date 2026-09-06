@@ -78,8 +78,18 @@ class DanielspringerApiTest {
         assertTrue(result is DanielspringerApiResult.Unusable)
     }
 
-    @Test fun server_error_is_unusable() = runBlocking {
+    @Test fun server_error_suppresses_scraping() = runBlocking {
         val result = apiReturning { json(it, "boom", code = 503) }.latest("PLK110", Region.CN)
+        assertTrue(result is DanielspringerApiResult.Unreachable)
+    }
+
+    @Test fun forbidden_suppresses_scraping() = runBlocking {
+        val result = apiReturning { json(it, "forbidden", code = 403) }.latest("PLK110", Region.CN)
+        assertTrue(result is DanielspringerApiResult.Unreachable)
+    }
+
+    @Test fun never_selects_a_release_for_a_different_model() = runBlocking {
+        val result = apiReturning { json(it, plk110Json) }.latest("CPH2747", Region.CN)
         assertTrue(result is DanielspringerApiResult.Unusable)
     }
 

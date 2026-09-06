@@ -1,6 +1,7 @@
 package com.desmond.ofd.download
 
 import kotlinx.coroutines.async
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -73,6 +74,47 @@ class UrlHolderTest {
         val thrown = runCatching { holder.resolveInitial() }.exceptionOrNull()
         assertTrue(thrown is IOException)
         assertEquals("anti-leech rejected", thrown!!.message)
+    }
+
+    @Test fun a_failed_refresh_is_shared_by_all_waiting_chunks() = runBlocking {
+        val calls = AtomicInteger()
+        val holder = UrlHolder(provider = {
+            if (calls.incrementAndGet() > 1) throw IOException("temporarily unavailable")
+            "first"
+        }, nowNanos = { 0L }, resolveGate = { it })
+        holder.resolveInitial()
+        val results = coroutineScope { (1..64).map { async { holder.refresh(1) } }.awaitAll() }
+        assertTrue(results.all { it == null })
+        assertEquals(2, calls.get())
+    }
+
+    @Test fun cancellation_is_not_swallowed_as_a_failed_refresh() = runBlocking {
+        var cancelled = false
+        val holder = UrlHolder(provider = {
+            if (cancelled) throw CancellationException("cancelled by user")
+            "first"
+        }, resolveGate = { it })
+        holder.resolveInitial()
+        cancelled = true
+        val failure = runCatching { holder.refresh(1) }.exceptionOrNull()
+        assertTrue(failure is CancellationException)
+    }
+
+    @Test fun a_transient_refresh_failure_can_recover_after_backoff() = runBlocking {
+        var now = 0L
+        var calls = 0
+        val holder = UrlHolder(provider = {
+            calls++
+            if (calls == 2) throw IOException("temporary token service outage")
+            "url-$calls"
+        }, nowNanos = { now }, resolveGate = { it })
+        holder.resolveInitial()
+        assertNull(holder.refresh(1))
+        assertNull(holder.refresh(1))
+        assertEquals(2, calls)
+        now += 1_000_000_000L
+        assertEquals("url-3", holder.refresh(1))
+        assertEquals("url-3" to 2, holder.current())
     }
 
     private fun holderOf(calls: AtomicInteger, delayMs: Long = 0): UrlHolder = UrlHolder(

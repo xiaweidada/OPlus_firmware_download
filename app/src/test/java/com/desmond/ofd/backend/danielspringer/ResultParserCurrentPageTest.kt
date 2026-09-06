@@ -2,6 +2,7 @@ package com.desmond.ofd.backend.danielspringer
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -18,6 +19,14 @@ import org.junit.Test
  * is *not* relied on below — it is only a later fallback in the parser.
  */
 class ResultParserCurrentPageTest {
+
+    @Test fun a_lazy_result_does_not_mistake_the_changelog_for_a_firmware_package() {
+        val lazy = javaClass.getResource("/danielspringer/after_post_lazy.html")!!.readText()
+        val parsed = ResultParser.parseResultHtml(lazy, 0)
+        assertNull(parsed.downloadUrl)
+        assertEquals("2026-08-01", parsed.securityPatch)
+        assertEquals("PLK110_11.A.72_0720_202607301131", parsed.realOtaVersion)
+    }
 
     private val html: String =
         ResultParserCurrentPageTest::class.java

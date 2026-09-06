@@ -73,7 +73,7 @@ jobs:
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$keystore"
           echo "keystore=$keystore" >> "$GITHUB_OUTPUT"
 
-      - name: Build unsigned release APK
+      - name: Test, lint, and build unsigned release APK
         shell: bash
         env:
           # Secondary firmware source config (optional). Set these as repository secrets to
@@ -85,7 +85,7 @@ jobs:
           # Authorized email for the token-gated download source. Without it, the source resolves
           # metadata but downloads are disabled.
           MIRROR_EMAIL: ${{ secrets.MIRROR_EMAIL }}
-        run: ./gradlew --no-daemon :app:assembleRelease
+        run: ./gradlew --no-daemon :app:testDebugUnitTest :app:lintDebug :app:assembleRelease
 
       - name: Align, sign, and verify APK
         shell: bash
@@ -126,12 +126,20 @@ jobs:
 
       - name: Write release notes
         shell: bash
+        env:
+          VERSION_NAME: ${{ steps.version.outputs.name }}
+          VERSION_CODE: ${{ steps.version.outputs.code }}
         run: |
-          cat > release-notes.md <<EOF
-          Automated release for ${{ steps.version.outputs.tag }}.
+          set -euo pipefail
+          awk -v version="$VERSION_NAME" '
+            $0 == "## " version { printing = 1; next }
+            printing && /^## / { exit }
+            printing { print }
+          ' CHANGELOG.md > release-notes.md
+          cat >> release-notes.md <<EOF
 
-          - Version name: ${{ steps.version.outputs.name }}
-          - Version code: ${{ steps.version.outputs.code }}
+          - Version name: $VERSION_NAME
+          - Version code: $VERSION_CODE
           - Commit: ${{ github.sha }}
           - APK: app-release.apk
           EOF

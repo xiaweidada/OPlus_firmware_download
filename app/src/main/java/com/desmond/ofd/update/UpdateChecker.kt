@@ -1,5 +1,7 @@
 package com.desmond.ofd.update
 
+import com.desmond.ofd.http.await
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -45,7 +47,7 @@ object UpdateChecker {
                 .header("Accept", "application/vnd.github+json")
                 .header("X-GitHub-Api-Version", "2022-11-28")
                 .build()
-            client.newCall(req).execute().use { resp ->
+            client.newCall(req).await().use { resp ->
                 if (!resp.isSuccessful) {
                     return@withContext Result.Failed("HTTP ${resp.code}")
                 }
@@ -67,6 +69,7 @@ object UpdateChecker {
                 }
             }
         }.getOrElse { t ->
+            if (t is CancellationException) throw t
             Result.Failed(t.message ?: t::class.simpleName ?: "unknown")
         }
     }

@@ -40,7 +40,7 @@ internal object RealmeOtaDownloadSelector {
             realOtaVersion = response.realOtaVersion,
             downloadUrls = downloadUrls,
             sizeBytes = sizeBytes,
-            md5 = packet.md5.takeIf { it.isNotBlank() },
+            md5 = packet.md5.trim().takeIf { it.isNotBlank() },
             securityPatch = response.securityPatch,
         )
     }

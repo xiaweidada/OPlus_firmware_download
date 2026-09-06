@@ -37,10 +37,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -54,11 +52,6 @@ import com.desmond.ofd.diag.render
 import com.desmond.ofd.device.DeviceProps
 import com.desmond.ofd.device.DeviceSnapshot
 import kotlinx.coroutines.launch
-
-private data class PendingDownload(
-    val outcome: BackendOutcome.Success,
-    val displayName: String,
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,12 +72,11 @@ fun HomeScreen(modifier: Modifier = Modifier) {
 
     val snapshot = remember { DeviceProps.snapshot() }
 
-    var pending by remember { mutableStateOf<PendingDownload?>(null) }
     val savePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
-        val pendingDownload = pending
-        pending = null
+        val pendingDownload = vm.pendingDownload
+        vm.pendingDownload = null
         if (pendingDownload == null || result.resultCode != Activity.RESULT_OK) {
             return@rememberLauncherForActivityResult
         }
@@ -95,7 +87,9 @@ fun HomeScreen(modifier: Modifier = Modifier) {
             return@rememberLauncherForActivityResult
         }
         scope.launch {
-            val message = when (val res = vm.startDownload(uri, pendingDownload.outcome, pendingDownload.displayName)) {
+            val message = when (val res = vm.startDownload(
+                uri, pendingDownload.outcome, pendingDownload.displayName, pendingDownload.check,
+            )) {
                 is DownloadStart.Started -> downloadStartedMessage
                 DownloadStart.AlreadyRunning -> downloadInProgressMessage
                 is DownloadStart.Failed -> downloadLinkFailedPattern.format(res.reason)
@@ -112,11 +106,12 @@ fun HomeScreen(modifier: Modifier = Modifier) {
     ) { _ ->
         // Regardless of grant, proceed to the SAF picker — the download itself doesn't
         // require notification permission, the user just won't see a system notification.
-        pending?.let { savePicker.launch(createFirmwareDocumentIntent(it.displayName)) }
+        vm.pendingDownload?.let { savePicker.launch(createFirmwareDocumentIntent(it.displayName)) }
     }
 
     fun launchDownloadFlow(intent: PendingDownload) {
-        pending = intent
+        if (vm.pendingDownload != null) return
+        vm.pendingDownload = intent
         // minSdk = 33; POST_NOTIFICATIONS is always required.
         val granted = ContextCompat.checkSelfPermission(
             ctx, Manifest.permission.POST_NOTIFICATIONS,
@@ -161,7 +156,7 @@ fun HomeScreen(modifier: Modifier = Modifier) {
                         onDownloadClick = {
                             val winner = s.winnerOutcome ?: return@ResultCard
                             val name = suggestedFilename(s.marketingName, winner.versionName)
-                            launchDownloadFlow(PendingDownload(winner, name))
+                            launchDownloadFlow(PendingDownload(winner, name, vm.checkDiagnostics(s)))
                         },
                         onCopied = { label ->
                             scope.launch {

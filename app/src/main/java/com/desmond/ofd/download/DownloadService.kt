@@ -15,7 +15,8 @@ import kotlinx.coroutines.launch
 /**
  * Foreground service that pins the process alive while at least one download is in flight.
  * Observes [DownloadCoordinator.jobs] and updates the (single, summary) notification on each
- * change. When the jobs map empties, releases foreground and self-stops.
+ * change. Stops foreground work when no transfer or verification is running; keeping completed
+ * cards in the UI must not consume Android's dataSync foreground-service time allowance.
  *
  * Android 15+ caps `dataSync` foreground services at 6 hours per 24-hour window. When the
  * timer fires, [onTimeout] is invoked — we cancel all in-flight downloads cleanly rather
@@ -43,6 +44,10 @@ class DownloadService : LifecycleService() {
                         } catch (_: SecurityException) {
                             // POST_NOTIFICATIONS can be denied while the foreground service runs.
                         }
+                        if (jobsMap.values.none { it.state is DownloadState.Active || it.state is DownloadState.Verifying }) {
+                            ServiceCompat.stopForeground(this@DownloadService, ServiceCompat.STOP_FOREGROUND_DETACH)
+                            stopSelf()
+                        }
                     }
                 }
             }
@@ -54,7 +59,9 @@ class DownloadService : LifecycleService() {
     override fun onTimeout(startId: Int, fgsType: Int) {
         // Android 15+ enforces a 6h cap on dataSync FGS. Cancel cleanly so partial files are
         // removed and StateFlow returns to empty, instead of the system killing us hard.
-        DownloadCoordinator.jobs.value.keys.toList().forEach { DownloadCoordinator.cancel(it) }
+        DownloadCoordinator.jobs.value.values
+            .filter { it.state is DownloadState.Active || it.state is DownloadState.Verifying }
+            .forEach { DownloadCoordinator.cancel(it.id) }
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

@@ -1,5 +1,8 @@
 package com.desmond.ofd.backend.danielspringer
 
+import com.desmond.ofd.firmware.FirmwareSource
+import com.desmond.ofd.firmware.firmwareSourceFor
+
 /** Outcome of a successful live URL fetch from danielspringer.at. */
 data class DanielspringerResult(
     /** Resolved download URL — could be OPPO's S3 (`*.allawnfs.com`) or Google's OTA CDN. */
@@ -18,4 +21,6 @@ data class DanielspringerResult(
     val manualOnly: Boolean = false,
     /** Epoch seconds — parsed from the URL's `Expires=...` query param, 0 if not present. */
     val expiresAtEpochSeconds: Long = 0L,
+    /** Keep the original gate renewable even when [downloadUrl] names a resolved fallback CDN. */
+    val source: FirmwareSource = firmwareSourceFor(downloadUrl),
 )

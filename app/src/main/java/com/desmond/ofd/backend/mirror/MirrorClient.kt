@@ -3,6 +3,9 @@ package com.desmond.ofd.backend.mirror
 import android.content.Context
 import android.util.Log
 import com.desmond.ofd.BuildConfig
+import com.desmond.ofd.firmware.isFirmwareDownloadUrl
+import com.desmond.ofd.firmware.validateFirmwareSize
+import com.desmond.ofd.http.await
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -13,10 +16,12 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.URLEncoder
+import java.io.IOException
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -42,18 +47,15 @@ class MirrorClient(
      * personal donor email in public releases (it would be extractable and get rate-limited/banned).
      */
     private val downloadEmail: String = BuildConfig.MIRROR_EMAIL.trim(),
+    httpClient: OkHttpClient = defaultClient(),
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     val enabled: Boolean = baseUrl.isNotBlank() && key.isNotBlank() && userAgent.isNotBlank()
 
     private val crypto by lazy { MirrorCrypto(key) }
     private val json = Json { ignoreUnknownKeys = true }
-    private val http = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
-
-    /** Used for the proxy hop, where the `Location` is the payload rather than something to follow. */
-    private val noRedirectHttp = http.newBuilder()
+    // Neither API requests nor proxy hops may forward credentials through an automatic redirect.
+    private val http = httpClient.newBuilder()
         .followRedirects(false)
         .followSslRedirects(false)
         .build()
@@ -87,14 +89,17 @@ class MirrorClient(
                 ?: return MirrorLookup.Unavailable(MirrorUnavailableReason.UNAVAILABLE)
             // The endpoint answers HTTP 200 with an `error` field for an unknown device.
             if (fv.error != null) return MirrorLookup.Unavailable(MirrorUnavailableReason.MODEL_NOT_COVERED)
-            if (fv.romVersion.isBlank()) return MirrorLookup.Unavailable(MirrorUnavailableReason.UNAVAILABLE)
+            val size = fv.sizeBytes.toLongOrNull() ?: -1L
+            if (fv.romVersion.isBlank() || fv.otaVersion.isBlank() || validateFirmwareSize(size, -1L) != null) {
+                return MirrorLookup.Unavailable(MirrorUnavailableReason.UNAVAILABLE)
+            }
             MirrorLookup.Found(
                 MirrorVersion(
                     deviceName = deviceName,
                     versionName = fv.romVersion,
                     otaVersion = fv.otaVersion,
-                    sizeBytes = fv.sizeBytes.toLongOrNull() ?: -1L,
-                    md5 = fv.md5.ifBlank { null },
+                    sizeBytes = size,
+                    md5 = fv.md5.trim().ifBlank { null },
                     securityPatch = fv.securityPatch.ifBlank { null },
                 ),
             )
@@ -129,22 +134,32 @@ class MirrorClient(
             return MirrorResolution.Failed(MirrorDownloadFailure.NO_OTA_VERSION)
         }
         return runCatching {
-            val token = acquireToken(deviceName, otaVersion)
-                ?: return MirrorResolution.Failed(MirrorDownloadFailure.TOKEN_REJECTED)
-            val headers = mapOf("X-Download-Token" to token, "X-Client-Fingerprint" to fingerprint)
-            val links = getDecoded(
-                "/api/coloros/download/${enc(deviceName)}/${enc(otaVersion)}",
-                MirrorDownloadLinks.serializer(),
-                headers,
-            ) ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
-            val proxyUrl = links.fullUrl.ifBlank { null }
-                ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
-            val pinned = followProxyRedirect(proxyUrl, token)
-                ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
-            MirrorResolution.Resolved(pinned)
+            repeat(2) { attempt ->
+                val token = acquireToken(deviceName, otaVersion)
+                    ?: return MirrorResolution.Failed(MirrorDownloadFailure.TOKEN_REJECTED)
+                try {
+                    val headers = mapOf("X-Download-Token" to token, "X-Client-Fingerprint" to fingerprint)
+                    val links = getDecoded(
+                        "/api/coloros/download/${enc(deviceName)}/${enc(otaVersion)}",
+                        MirrorDownloadLinks.serializer(), headers,
+                    ) ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
+                    val proxyUrl = links.fullUrl.ifBlank { null }
+                        ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
+                    val pinned = followProxyRedirect(proxyUrl, token)
+                        ?: return MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
+                    return MirrorResolution.Resolved(pinned)
+                } catch (e: MirrorHttpException) {
+                    if (e.code !in setOf(401, 403)) throw e
+                    tokens.computeIfPresent("$deviceName|$otaVersion") { _, state ->
+                        state.takeUnless { it.token == token }
+                    }
+                    if (attempt == 1) return MirrorResolution.Failed(MirrorDownloadFailure.TOKEN_REJECTED)
+                }
+            }
+            MirrorResolution.Failed(MirrorDownloadFailure.TOKEN_REJECTED)
         }.getOrElse { e ->
             if (e is CancellationException) throw e
-            if (BuildConfig.DEBUG) Log.w(TAG, "resolveDownloadUrl failed for $deviceName", e)
+            if (BuildConfig.DEBUG) Log.w(TAG, "resolveDownloadUrl failed (${e::class.simpleName})")
             MirrorResolution.Failed(MirrorDownloadFailure.NO_LINK)
         }
     }
@@ -158,19 +173,29 @@ class MirrorClient(
      */
     private suspend fun followProxyRedirect(proxyUrl: String, token: String): String? =
         withContext(Dispatchers.IO) {
+            // A direct firmware URL needs no mirror headers. Proxy URLs must stay at the
+            // configured origin; the API response is not permission to disclose a donor token.
+            if (isFirmwareDownloadUrl(proxyUrl)) return@withContext proxyUrl
+            val origin = baseUrl.toHttpUrlOrNull() ?: return@withContext null
+            val proxy = origin.resolve(proxyUrl) ?: return@withContext null
+            if (proxy.scheme != origin.scheme || proxy.host != origin.host || proxy.port != origin.port ||
+                proxy.username.isNotEmpty() || proxy.password.isNotEmpty()
+            ) return@withContext null
             val request = Request.Builder()
-                .url(proxyUrl)
+                .url(proxy)
                 .header("User-Agent", userAgent)
                 .header("X-Download-Token", token)
                 .header("X-Client-Fingerprint", fingerprint)
                 .header("Accept", "*/*")
                 .build()
-            noRedirectHttp.newCall(request).execute().use { resp ->
-                if (resp.code !in 300..399) {
+            http.newCall(request).await().use { resp ->
+                if (resp.code == 401 || resp.code == 403) throw MirrorHttpException(resp.code)
+                if (resp.code !in setOf(301, 302, 303, 307, 308)) {
                     if (BuildConfig.DEBUG) Log.w(TAG, "proxy redirect hop -> HTTP ${resp.code}")
                     return@withContext null
                 }
                 resp.header("Location")?.let { resp.request.url.resolve(it)?.toString() }
+                    ?.takeIf(::isFirmwareDownloadUrl)
             }
         }
 
@@ -193,26 +218,32 @@ class MirrorClient(
 
     private fun cachedFreshToken(cacheKey: String): String? {
         val cached = tokens[cacheKey] ?: return null
-        return cached.token.takeIf { System.currentTimeMillis() < cached.expiresAtMillis - REFRESH_MARGIN_MS }
+        return cached.token.takeIf { now() < cached.expiresAtMillis - REFRESH_MARGIN_MS }
     }
 
-    /** Issue a new token. On failure, falls back to a stale cached one rather than giving up. */
+    /** Issue a new token. Refusal must never resurrect an expired cached credential. */
     private suspend fun issueToken(cacheKey: String, deviceName: String, otaVersion: String): String? {
-        val now = System.currentTimeMillis()
+        val now = now()
         val body = json.encodeToString(
             MirrorTokenRequest.serializer(),
             MirrorTokenRequest(email = downloadEmail, device = deviceName, otaVersion = otaVersion, packageType = "full"),
         )
-        val resp = postDecoded(
-            "/api/coloros/premium/download-token", body, MirrorTokenResponse.serializer(),
-            mapOf("X-Client-Fingerprint" to fingerprint),
-        )
+        val resp = try {
+            postDecoded(
+                "/api/coloros/premium/download-token", body, MirrorTokenResponse.serializer(),
+                mapOf("X-Client-Fingerprint" to fingerprint),
+            )
+        } catch (_: MirrorHttpException) {
+            null
+        }
         val issued = resp?.token.orEmpty()
-        if (issued.isNotBlank()) {
-            tokens[cacheKey] = TokenState(issued, now + resp!!.expiresIn.coerceAtLeast(30) * 1000)
+        val lifetime = resp?.expiresIn ?: 0L
+        if (issued.isNotBlank() && lifetime > 0 && lifetime <= (Long.MAX_VALUE - now) / 1000L) {
+            tokens[cacheKey] = TokenState(issued, now + lifetime * 1000L)
             return issued
         }
-        return tokens[cacheKey]?.token
+        tokens.remove(cacheKey)
+        return null
     }
 
     // ---- internals ----
@@ -240,12 +271,12 @@ class MirrorClient(
         extra: Map<String, String> = emptyMap(),
     ): T? {
         val body = call(apiPath, "GET", null, extra) ?: return null
-        return runCatching { json.decodeFromString(serializer, body) }.getOrNull()
+        return json.decodeFromString(serializer, body)
     }
 
     private suspend fun <T> getDecodedList(apiPath: String, element: KSerializer<T>): List<T>? {
         val body = call(apiPath, "GET", null, emptyMap()) ?: return null
-        return runCatching { json.decodeFromString(ListSerializer(element), body) }.getOrNull()
+        return json.decodeFromString(ListSerializer(element), body)
     }
 
     private suspend fun <T> postDecoded(
@@ -255,10 +286,10 @@ class MirrorClient(
         extra: Map<String, String>,
     ): T? {
         val body = call(apiPath, "POST", bodyJson, extra) ?: return null
-        return runCatching { json.decodeFromString(serializer, body) }.getOrNull()
+        return json.decodeFromString(serializer, body)
     }
 
-    /** Sign the path, send the body (encrypted only for `/subscriptions/`), execute, decrypt the response. */
+    /** Sign the path, encrypt POST bodies, execute, and decrypt the response. */
     private suspend fun call(
         apiPath: String,
         method: String,
@@ -279,10 +310,10 @@ class MirrorClient(
                 .header("X-Encryption-IV", enc.ivB64)
                 .post(enc.body.toRequestBody(PLAIN_TEXT))
         }
-        http.newCall(builder.build()).execute().use { resp ->
+        http.newCall(builder.build()).await().use { resp ->
             if (!resp.isSuccessful) {
                 if (BuildConfig.DEBUG) Log.w(TAG, "$method $apiPath -> HTTP ${resp.code}")
-                return@withContext null
+                throw MirrorHttpException(resp.code)
             }
             val raw = resp.body?.string().orEmpty()
             if (resp.header("x-encrypted-data") == "true") {
@@ -295,11 +326,18 @@ class MirrorClient(
         }
     }
 
+    private class MirrorHttpException(val code: Int) : IOException("Mirror request returned HTTP $code")
+
     private companion object {
         const val TAG = "OFD-Mirror"
         const val PREF_FINGERPRINT = "fingerprint"
         const val REFRESH_MARGIN_MS = 15_000L
         val PLAIN_TEXT = "text/plain; charset=utf-8".toMediaType()
+
+        private fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
     }
 }
 

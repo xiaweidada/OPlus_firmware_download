@@ -1,18 +1,14 @@
 package com.desmond.ofd.firmware
 
+import com.desmond.ofd.http.await
 import com.desmond.ofd.http.FIRMWARE_ID_HEADER
 import com.desmond.ofd.http.FIRMWARE_ID_VALUE
 import com.desmond.ofd.http.FIRMWARE_USER_AGENT
-import kotlinx.coroutines.suspendCancellableCoroutine
-import okhttp3.Call
-import okhttp3.Callback
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 internal object FirmwareDownloadGate {
     fun isOplusDownloadGate(url: String): Boolean {
@@ -122,21 +118,4 @@ internal sealed interface FirmwareDownloadGateResult {
         val httpCode: Int? = null,
         val rejectionCode: String? = null,
     ) : FirmwareDownloadGateResult
-}
-
-private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
-    enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-            if (cont.isActive) cont.resumeWithException(e)
-        }
-
-        override fun onResponse(call: Call, response: Response) {
-            if (cont.isActive) {
-                cont.resume(response)
-            } else {
-                response.close()
-            }
-        }
-    })
-    cont.invokeOnCancellation { runCatching { cancel() } }
 }

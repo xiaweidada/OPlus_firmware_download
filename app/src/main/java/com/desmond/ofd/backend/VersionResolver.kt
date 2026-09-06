@@ -10,7 +10,7 @@ package com.desmond.ofd.backend
  *    a longer tail winning ties (more granular ⇒ newer).
  *
  *  - Returns negative if `a < b`, positive if `a > b`, zero if equal.
- *  - Unparseable inputs sort *below* anything parseable; both unparseable → string compare.
+ *  - Unparseable inputs sort below anything parseable; two unparseable inputs tie.
  */
 object VersionResolver {
 

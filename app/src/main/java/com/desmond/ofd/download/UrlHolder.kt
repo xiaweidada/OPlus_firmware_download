@@ -2,6 +2,7 @@ package com.desmond.ofd.download
 
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.io.IOException
 
 /**
  * A download's current URL, plus the ability to mint a fresh one.
@@ -13,19 +14,23 @@ import kotlinx.coroutines.sync.withLock
  * whatever URL the winner installed. Without that, 64 chunks noticing together would mean 64
  * re-resolutions, and for the mirror that means 64 token requests.
  *
- * [resolveGate] is applied to whatever [provider] returns, turning an OPPO `/downloadCheck`
- * gate URL into a directly fetchable one; it is identity for sources that are already final.
+ * [resolveGate] verifies whatever [provider] returns, including gate redirects and CDN fallback.
  */
 internal class UrlHolder(
     private val provider: DownloadUrlProvider,
+    initialUrl: String? = null,
+    private val nowNanos: () -> Long = System::nanoTime,
     private val resolveGate: suspend (String) -> String,
 ) {
     private val mutex = Mutex()
-    @Volatile private var url: String = ""
-    @Volatile private var generation: Int = 0
+    // Publish the URL and generation together; separate volatile reads could pair an old URL
+    // with a new generation and cause a worker to refresh the wrong link.
+    @Volatile private var snapshot = (initialUrl ?: "") to if (initialUrl == null) 0 else 1
+    private var failedGeneration: Int? = null
+    private var failedAtNanos = 0L
 
     /** The current URL paired with the generation it belongs to. */
-    fun current(): Pair<String, Int> = url to generation
+    fun current(): Pair<String, Int> = snapshot
 
     /** Resolve for the first time. Propagates the failure, which carries the useful detail. */
     suspend fun resolveInitial(): String = mutex.withLock { resolveLocked() }
@@ -35,14 +40,30 @@ internal class UrlHolder(
      * their URL is returned untouched. Null when re-resolution was needed but failed.
      */
     suspend fun refresh(seenGeneration: Int): String? = mutex.withLock {
+        val (url, generation) = snapshot
         if (generation != seenGeneration) return@withLock url
-        runCatching { resolveLocked() }.getOrNull()
+        // Share failed exchanges during the workers' backoff too, then allow a later retry
+        // to recover without throwing away the file. Queued workers must not burst 64 requests.
+        if (failedGeneration == seenGeneration && nowNanos() - failedAtNanos < REFRESH_BACKOFF_NANOS) {
+            return@withLock null
+        }
+        try {
+            resolveLocked()
+        } catch (_: IOException) {
+            failedGeneration = seenGeneration
+            failedAtNanos = nowNanos()
+            null
+        }
     }
 
     private suspend fun resolveLocked(): String {
         val resolved = resolveGate(provider())
-        url = resolved
-        generation += 1
+        snapshot = resolved to snapshot.second + 1
+        failedGeneration = null
         return resolved
+    }
+
+    private companion object {
+        const val REFRESH_BACKOFF_NANOS = 1_000_000_000L
     }
 }

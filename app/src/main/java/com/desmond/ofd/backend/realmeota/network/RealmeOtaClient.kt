@@ -1,21 +1,16 @@
 package com.desmond.ofd.backend.realmeota.network
 
+import com.desmond.ofd.http.await
 import com.desmond.ofd.backend.realmeota.data.OtaRequestParams
 import com.desmond.ofd.backend.realmeota.data.OtaResponseDto
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
-import okhttp3.Call
-import okhttp3.Callback
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import okhttp3.Response
 import java.io.IOException
 import java.util.concurrent.TimeUnit
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 /** Orchestrates one OPPO OTA query: builds, encrypts, POSTs, decrypts, retries once on rejection. */
 class RealmeOtaClient(
@@ -106,19 +101,4 @@ sealed class OtaResult {
     data class NetworkError(val cause: Throwable) : OtaResult()
     data class CryptoError(val cause: Throwable) : OtaResult()
     data class ContentError(val checkFailReason: String) : OtaResult()
-}
-
-/** Bridges OkHttp's callback-style enqueue to a suspend function. */
-private suspend fun Call.await(): Response = suspendCancellableCoroutine { cont ->
-    enqueue(object : Callback {
-        override fun onFailure(call: Call, e: IOException) {
-            if (cont.isActive) cont.resumeWithException(e)
-        }
-        override fun onResponse(call: Call, response: Response) {
-            if (cont.isActive) cont.resume(response)
-        }
-    })
-    cont.invokeOnCancellation {
-        runCatching { cancel() }
-    }
 }
